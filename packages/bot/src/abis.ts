@@ -1,5 +1,12 @@
 export const ROUND_MANAGER_ABI = [
   {
+    name: 'openRound',
+    type: 'function' as const,
+    stateMutability: 'nonpayable' as const,
+    inputs:  [{ name: 'priceFeedId', type: 'bytes32' }, { name: 'durationSeconds', type: 'uint256' }],
+    outputs: [{ name: 'roundId', type: 'uint256' }],
+  },
+  {
     name: 'getRound',
     type: 'function' as const,
     stateMutability: 'view' as const,

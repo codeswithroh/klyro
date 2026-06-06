@@ -10,14 +10,13 @@ import {
   createPublicClient,
   createWalletClient,
   http,
-  parseAbiItem,
-  type Log,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { config } from './config.js'
 import { mantleSepolia } from './chain.js'
 import { ROUND_MANAGER_ABI } from './abis.js'
 import { predictDirection } from './predictor.js'
+import { startRoundOpener } from './roundOpener.js'
 
 // ── Clients ────────────────────────────────────────────────────────────────────
 
@@ -194,13 +193,42 @@ async function main() {
   // Start resolve polling in background
   resolveLoop().catch((e) => log(`resolveLoop crashed: ${e.message}`))
 
-  // Watch for RoundOpened events
-  log('Watching for RoundOpened events…')
-  publicClient.watchContractEvent({
-    address: config.roundManagerAddress,
-    abi: ROUND_MANAGER_ABI,
-    eventName: 'RoundOpened',
-    onLogs: (logs) => {
+  // Open rounds on a fixed schedule (pushes fresh Pyth VAA before each open)
+  startRoundOpener(60).catch((e) => log(`RoundOpener crashed: ${e.message}`))
+
+  // Mantle Sepolia RPC doesn't support eth_newFilter, so we poll getLogs manually.
+  log('Polling for RoundOpened events every 4s…')
+  await pollForRoundOpenedEvents()
+}
+
+// ── getLogs polling loop (replaces watchContractEvent) ─────────────────────────
+
+async function pollForRoundOpenedEvents() {
+  // keccak256("RoundOpened(uint256,bytes32,int64,uint64,uint64)")
+  const ROUND_OPENED_TOPIC = '0x' as `0x${string}` // placeholder, computed below
+
+  // Use encodeEventTopics from viem for correctness
+  const { encodeEventTopics, parseAbiItem, decodeEventLog } = await import('viem')
+
+  const eventAbi = parseAbiItem('event RoundOpened(uint256 indexed roundId, bytes32 priceFeedId, int64 startPrice, uint64 startTime, uint64 closeTime)')
+  const [topic0] = encodeEventTopics({ abi: [eventAbi], eventName: 'RoundOpened' })
+
+  let fromBlock = await publicClient.getBlockNumber()
+  log(`Starting event poll from block ${fromBlock}`)
+
+  while (true) {
+    await sleep(4_000)
+    try {
+      const toBlock = await publicClient.getBlockNumber()
+      if (toBlock < fromBlock) continue
+
+      const logs = await publicClient.getLogs({
+        address: config.roundManagerAddress,
+        event: eventAbi,
+        fromBlock,
+        toBlock,
+      })
+
       for (const l of logs) {
         const { roundId, priceFeedId, closeTime } = l.args as {
           roundId: bigint
@@ -213,12 +241,12 @@ async function main() {
           log(`handleRoundOpened error: ${e.message}`)
         )
       }
-    },
-    onError: (err) => log(`watchContractEvent error: ${err.message}`),
-  })
 
-  // Keep alive
-  await new Promise(() => {})
+      fromBlock = toBlock + 1n
+    } catch (err) {
+      log(`getLogs error: ${(err as Error).message}`)
+    }
+  }
 }
 
 main().catch((e) => {

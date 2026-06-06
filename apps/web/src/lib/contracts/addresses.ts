@@ -14,7 +14,7 @@ export const CONTRACTS = {
 
 // Pyth Network on Mantle Sepolia
 export const PYTH_ADDRESS = process.env.NEXT_PUBLIC_PYTH_ADDRESS
-  ?? '0xA2aa501b19aff244D90cc15a4Cf739D2725B5729'
+  ?? '0x98046Bd286715D3B0BC227Dd7a956b83D8978603'
 
 // Pyth price feed IDs (verified at https://pyth.network/developers/price-feed-ids)
 export const PRICE_FEEDS = {
