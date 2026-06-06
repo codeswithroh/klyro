@@ -16,11 +16,30 @@ interface ResultCardProps {
 export function ResultCard({ result, agentName, agentInitials, txHash, onPlayAgain }: ResultCardProps) {
   const { humanWon, agentWon, humanCall, agentCall, outcome, deltaText, points, newStreak, asset, startPrice, closePrice } = result
 
+  // Build OG image URL for the share card
+  const BASE_URL = typeof window !== 'undefined'
+    ? window.location.origin
+    : 'https://klyro.xyz'
+
+  const ogParams = new URLSearchParams({
+    mode: 'result',
+    won: String(humanWon),
+    asset,
+    delta: deltaText,
+    dir: outcome,
+    opponent: agentName,
+    points: String(points),
+    streak: String(newStreak),
+  })
+  const ogImageUrl = `${BASE_URL}/api/og?${ogParams.toString()}`
+
   const shareText = humanWon
     ? `I just out-predicted ${agentName} on Klyro! Called ${humanCall.toUpperCase()} — price moved ${deltaText}. ${newStreak > 1 ? `${newStreak} in a row 🔥` : ''} Can you beat the machine? #Klyro #MantleAI`
     : `${agentName} got me on Klyro — I called ${humanCall.toUpperCase()} but price went ${outcome.toUpperCase()} ${deltaText}. Rematch time. #Klyro #MantleAI`
 
-  const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`
+  // Twitter/X shows OG image when a URL is in the tweet — append the round verify URL
+  const roundUrl = `${BASE_URL}/round/${result.roundId}`
+  const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText + '\n' + roundUrl)}`
 
   return (
     <div className="w-full max-w-[400px] mx-auto">

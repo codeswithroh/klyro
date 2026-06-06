@@ -4,19 +4,22 @@ import { Providers } from '@/components/ui/Providers'
 import { Nav } from '@/components/ui/Nav'
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+  ),
   title: 'Klyro — Out-predict the machine',
   description:
     'A fast, social price-prediction arena where humans go head-to-head against AI agents. Every call settled fairly and verifiably on-chain.',
   openGraph: {
     title: 'Klyro — Out-predict the machine',
     description: 'Call it UP. Call it DOWN. Beat the AI.',
-    images: ['/og.png'],
+    images: [{ url: '/api/og?mode=default', width: 1200, height: 630 }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Klyro — Out-predict the machine',
     description: 'Call it UP. Call it DOWN. Beat the AI.',
-    images: ['/og.png'],
+    images: ['/api/og?mode=default'],
   },
 }
 
