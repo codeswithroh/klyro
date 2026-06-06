@@ -1,19 +1,22 @@
-// Mantle Sepolia Testnet (Chain ID 5003)
-// TODO: update after contract deployments
+// Contract addresses on Mantle Sepolia (Chain ID 5003).
+// Populated by scripts/set-addresses.sh after deployment.
+
+const ZERO = '0x0000000000000000000000000000000000000000'
 
 export const MANTLE_SEPOLIA_CHAIN_ID = 5003
 
 export const CONTRACTS = {
-  RoundManager: '0x0000000000000000000000000000000000000000',
-  PredictionRegistry: '0x0000000000000000000000000000000000000000',
-  Leaderboard: '0x0000000000000000000000000000000000000000',
-  AgentRegistry: '0x0000000000000000000000000000000000000000',
+  RoundManager:        process.env.NEXT_PUBLIC_ROUND_MANAGER_ADDRESS        ?? ZERO,
+  PredictionRegistry:  process.env.NEXT_PUBLIC_PREDICTION_REGISTRY_ADDRESS  ?? ZERO,
+  Leaderboard:         process.env.NEXT_PUBLIC_LEADERBOARD_ADDRESS          ?? ZERO,
+  AgentRegistry:       process.env.NEXT_PUBLIC_AGENT_REGISTRY_ADDRESS       ?? ZERO,
 } as const
 
 // Pyth Network on Mantle Sepolia
-export const PYTH_ADDRESS = '0xA2aa501b19aff244D90cc15a4Cf739D2725B5729'
+export const PYTH_ADDRESS = process.env.NEXT_PUBLIC_PYTH_ADDRESS
+  ?? '0xA2aa501b19aff244D90cc15a4Cf739D2725B5729'
 
-// Pyth price feed IDs
+// Pyth price feed IDs (verified at https://pyth.network/developers/price-feed-ids)
 export const PRICE_FEEDS = {
   'ETH/USD': '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace',
   'BTC/USD': '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43',

@@ -3,14 +3,17 @@
 import type { RoundResult } from '@/lib/store/roundStore'
 import { formatPrice } from '@/lib/mock/priceSimulator'
 
+import { EXPLORER_URL } from '@/lib/contracts/chain'
+
 interface ResultCardProps {
   result: RoundResult
   agentName: string
   agentInitials: string
+  txHash?: string
   onPlayAgain: () => void
 }
 
-export function ResultCard({ result, agentName, agentInitials, onPlayAgain }: ResultCardProps) {
+export function ResultCard({ result, agentName, agentInitials, txHash, onPlayAgain }: ResultCardProps) {
   const { humanWon, agentWon, humanCall, agentCall, outcome, deltaText, points, newStreak, asset, startPrice, closePrice } = result
 
   const shareText = humanWon
@@ -91,12 +94,19 @@ export function ResultCard({ result, agentName, agentInitials, onPlayAgain }: Re
           </div>
         </div>
 
-        {/* mock on-chain proof */}
-        <div className="px-5 py-3 border-b border-line font-mono text-[11px] flex items-center justify-between">
+        {/* on-chain proof */}
+        <div className="px-5 py-3 border-b border-line font-mono text-[11px] flex items-center justify-between gap-3">
           <span className="text-ink-3 uppercase tracking-[.1em]">Round #{result.roundId}</span>
-          <span className="text-sig-ink bg-sig-wash px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-[.06em]">
-            ▦ Settled on-chain (mock)
-          </span>
+          {txHash ? (
+            <a href={`${EXPLORER_URL}/tx/${txHash}`} target="_blank" rel="noopener noreferrer"
+              className="text-sig-ink bg-sig-wash px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-[.06em] hover:underline">
+              ▦ View on Mantle ↗
+            </a>
+          ) : (
+            <span className="text-ink-3 bg-paper px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-[.06em]">
+              ▦ Settled on-chain
+            </span>
+          )}
         </div>
 
         {/* actions */}

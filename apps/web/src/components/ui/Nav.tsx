@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { Wordmark } from './Wordmark'
+import { WalletButton } from './WalletButton'
 
 export function Nav() {
   return (
@@ -24,10 +25,7 @@ export function Nav() {
           ))}
         </div>
 
-        <Link href="/arena"
-          className="font-mono text-[12px] font-semibold tracking-[.06em] uppercase text-white bg-ink px-4 py-2 rounded-full no-underline">
-          Play now ▦
-        </Link>
+        <WalletButton />
       </div>
     </nav>
   )

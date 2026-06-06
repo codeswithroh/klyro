@@ -1,0 +1,68 @@
+export const ROUND_MANAGER_ABI = [
+  {
+    name: 'getRound',
+    type: 'function' as const,
+    stateMutability: 'view' as const,
+    inputs: [{ name: 'roundId', type: 'uint256' }],
+    outputs: [
+      { name: 'priceFeedId', type: 'bytes32' },
+      { name: 'startPrice',  type: 'int64'   },
+      { name: 'closePrice',  type: 'int64'   },
+      { name: 'startTime',   type: 'uint64'  },
+      { name: 'closeTime',   type: 'uint64'  },
+      { name: 'resolved',    type: 'bool'    },
+      { name: 'outcome',     type: 'bool'    },
+    ],
+  },
+  {
+    name: 'lockPrediction',
+    type: 'function' as const,
+    stateMutability: 'nonpayable' as const,
+    inputs: [
+      { name: 'roundId', type: 'uint256' },
+      { name: 'isUp',    type: 'bool'    },
+    ],
+    outputs: [],
+  },
+  {
+    name: 'isRoundOpen',
+    type: 'function' as const,
+    stateMutability: 'view' as const,
+    inputs:  [{ name: 'roundId', type: 'uint256' }],
+    outputs: [{ name: '', type: 'bool' }],
+  },
+  {
+    name: 'nextRoundId',
+    type: 'function' as const,
+    stateMutability: 'view' as const,
+    inputs:  [],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    name: 'resolveRound',
+    type: 'function' as const,
+    stateMutability: 'nonpayable' as const,
+    inputs:  [{ name: 'roundId', type: 'uint256' }],
+    outputs: [],
+  },
+  {
+    name: 'RoundOpened',
+    type: 'event' as const,
+    inputs: [
+      { name: 'roundId',     type: 'uint256', indexed: true  },
+      { name: 'priceFeedId', type: 'bytes32', indexed: false },
+      { name: 'startPrice',  type: 'int64',   indexed: false },
+      { name: 'startTime',   type: 'uint64',  indexed: false },
+      { name: 'closeTime',   type: 'uint64',  indexed: false },
+    ],
+  },
+  {
+    name: 'RoundResolved',
+    type: 'event' as const,
+    inputs: [
+      { name: 'roundId',    type: 'uint256', indexed: true  },
+      { name: 'closePrice', type: 'int64',   indexed: false },
+      { name: 'outcome',    type: 'bool',    indexed: false },
+    ],
+  },
+] as const
