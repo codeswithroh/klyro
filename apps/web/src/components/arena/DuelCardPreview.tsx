@@ -1,16 +1,19 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { CountdownRing } from './CountdownRing'
+import { globalPriceSimulator, formatPrice } from '@/lib/mock/priceSimulator'
 
 const ROUND_SECONDS = 60
 
 export function DuelCardPreview() {
   const [seconds, setSeconds] = useState(ROUND_SECONDS)
+  const [price, setPrice] = useState(globalPriceSimulator.current('ETH/USD'))
 
   useEffect(() => {
     const id = setInterval(() => {
       setSeconds((s) => (s <= 1 ? ROUND_SECONDS : s - 1))
+      setPrice(globalPriceSimulator.tick('ETH/USD'))
     }, 1000)
     return () => clearInterval(id)
   }, [])
@@ -41,8 +44,8 @@ export function DuelCardPreview() {
             </div>
           </div>
           <div className="text-right">
-            <div className="font-mono font-bold text-[16px]">$3,418.20</div>
-            <div className="font-mono text-[11px] text-up font-semibold">▲ 0.42%</div>
+            <div className="font-mono font-bold text-[16px]">{formatPrice('ETH/USD', price)}</div>
+            <div className="font-mono text-[11px] text-up font-semibold">▲ live</div>
           </div>
         </div>
 

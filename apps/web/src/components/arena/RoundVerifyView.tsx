@@ -1,6 +1,8 @@
 'use client'
 
-// TODO (Phase B): Pull real round data from PredictionRegistry contract
+import { useRoundStore } from '@/lib/store/roundStore'
+import { formatPrice } from '@/lib/mock/priceSimulator'
+import Link from 'next/link'
 
 const EXPLORER = 'https://explorer.sepolia.mantle.xyz'
 
@@ -8,22 +10,35 @@ interface RoundVerifyViewProps {
   roundId: string
 }
 
-const MOCK_ROUND = {
-  id: '4821',
-  asset: 'ETH/USD',
-  startPrice: '$3,418.20',
-  closePrice: '$3,431.55',
-  startTs: '2026-06-06T12:00:00Z',
-  closeTs: '2026-06-06T12:01:00Z',
-  humanCall: 'UP',
-  agentCall: 'DOWN',
-  outcome: 'UP',
-  txHash: '0x9f3a...3ac1',
-  entropyHash: '0x7b2d...8ef3',
+// Mock tx hash derived from roundId — replaced with real hash in Phase B
+function mockTxHash(id: string) {
+  const n = parseInt(id, 10) || 4821
+  return `0x${(n * 0x13f7).toString(16).padStart(8, '0')}…${(n * 0xabcd).toString(16).slice(-4)}`
 }
 
 export function RoundVerifyView({ roundId }: RoundVerifyViewProps) {
-  const round = MOCK_ROUND
+  const lastResult = useRoundStore((s) => s.lastResult)
+  const storeRoundId = useRoundStore((s) => s.roundId)
+
+  // Use lastResult if roundId matches; otherwise show a generic mock
+  const isLatest = lastResult && String(lastResult.roundId) === roundId
+
+  const rows = isLatest
+    ? [
+        { k: 'Asset', v: lastResult.asset },
+        { k: 'Start price', v: formatPrice(lastResult.asset, lastResult.startPrice) },
+        { k: 'Close price', v: formatPrice(lastResult.asset, lastResult.closePrice) },
+        { k: 'Human call', v: lastResult.humanCall.toUpperCase() },
+        { k: 'Agent call', v: lastResult.agentCall.toUpperCase() },
+        { k: 'Outcome', v: lastResult.outcome.toUpperCase(), ok: true },
+        { k: 'Tx hash', v: mockTxHash(roundId), hash: true },
+        { k: 'Oracle', v: 'Pyth Network · Mantle Sepolia', hash: false },
+      ]
+    : [
+        { k: 'Round', v: `#${roundId}` },
+        { k: 'Status', v: 'Mock data — play a round to see live proof' },
+        { k: 'Tx hash', v: mockTxHash(roundId), hash: true },
+      ]
 
   return (
     <div className="min-h-screen bg-paper py-16 px-4">
@@ -32,41 +47,37 @@ export function RoundVerifyView({ roundId }: RoundVerifyViewProps) {
           <span className="w-[22px] h-[2px] bg-sig rounded-full" />
           Round #{roundId} · proof
         </span>
-        <h1 className="font-display font-black uppercase text-[clamp(28px,5vw,44px)] tracking-[-0.03em] leading-[.98] mb-8">
+        <h1 className="font-display font-black uppercase tracking-[-0.03em] leading-[.98] mb-2"
+          style={{ fontSize: 'clamp(28px, 5vw, 44px)' }}>
           On-chain<br />verification
         </h1>
+        <p className="font-mono text-[11px] text-ink-3 tracking-[.06em] uppercase mb-8">
+          Mock mode — all data is simulated. Real tx hashes land in Phase B.
+        </p>
 
-        {/* Proof table */}
         <div className="bg-surface border border-line rounded-lg overflow-hidden shadow mb-6">
-          {[
-            { k: 'Asset', v: round.asset },
-            { k: 'Start price', v: round.startPrice },
-            { k: 'Close price', v: round.closePrice },
-            { k: 'Human call', v: round.humanCall },
-            { k: 'Agent call', v: round.agentCall },
-            { k: 'Outcome', v: round.outcome, ok: true },
-            { k: 'Tx hash', v: round.txHash, hash: true },
-            { k: 'Entropy hash', v: round.entropyHash, hash: true },
-          ].map(({ k, v, ok, hash }) => (
+          {rows.map(({ k, v, ok, hash }) => (
             <div key={k} className="flex items-start justify-between gap-4 px-5 py-3.5 border-t border-line first:border-t-0 font-mono">
               <span className="text-[11px] tracking-[.1em] uppercase text-ink-3 flex-none pt-0.5">{k}</span>
               {hash ? (
                 <span className="text-[12px] text-ink bg-paper border border-line rounded-[8px] px-2 py-0.5 text-right break-all">{v}</span>
               ) : (
-                <span className={`text-[13px] font-semibold text-right ${ok ? 'text-up-ink' : 'text-ink'}`}>{v}</span>
+                <span className={`text-[13px] font-semibold text-right ${ok ? 'text-up-ink' : 'text-ink'}`}>{v as string}</span>
               )}
             </div>
           ))}
         </div>
 
-        <a
-          href={`${EXPLORER}/tx/${round.txHash}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 font-mono text-[12px] font-semibold tracking-[.06em] uppercase text-white bg-sig px-5 py-3 rounded-full shadow-sig"
-        >
-          View on Mantle Explorer ↗
-        </a>
+        <div className="flex gap-3 flex-wrap">
+          <a href={`${EXPLORER}/tx/${mockTxHash(roundId)}`} target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 font-mono text-[12px] font-semibold tracking-[.06em] uppercase text-white bg-sig px-5 py-3 rounded-full shadow-sig">
+            View on Explorer (mock) ↗
+          </a>
+          <Link href="/arena"
+            className="inline-flex items-center gap-2 font-mono text-[12px] font-semibold tracking-[.06em] uppercase bg-surface text-ink border border-line-2 px-5 py-3 rounded-full">
+            Back to arena
+          </Link>
+        </div>
       </div>
     </div>
   )
