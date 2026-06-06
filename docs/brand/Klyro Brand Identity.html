@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Klyro — Brand Identity</title>
+<link rel="stylesheet" href="klyro/styles.css" />
+</head>
+<body>
+
+<!-- ============ NAV ============ -->
+<nav class="nav">
+  <div class="nav-in">
+    <a class="brand" href="#top" style="text-decoration:none;color:inherit">
+      <span class="wordmark">KLYR<span class="wm-ring"><i></i></span></span>
+    </a>
+    <div class="nav-links">
+      <a href="#logo">Logo</a>
+      <a href="#color">Color</a>
+      <a href="#type">Type</a>
+      <a href="#duel">The Duel</a>
+      <a href="#board">Leaderboard</a>
+      <a href="#fair">Fairness</a>
+      <a href="#voice">Voice</a>
+    </div>
+    <a class="nav-cta" href="#fair">Provably Fair ▦</a>
+  </div>
+</nav>
+
+<!-- ============ HERO ============ -->
+<header class="hero" id="top">
+  <div class="wrap">
+    <div class="hero-grid">
+      <div>
+        <div class="hero-kicker">
+          <span class="tag sig">Brand Identity v1</span>
+          <span class="tag">Arena Light</span>
+          <span class="tag">Human <span style="color:var(--ink-3)">vs</span> AI</span>
+        </div>
+        <div class="hero-wm">KLYR<span class="wm-ring"><i></i></span></div>
+        <h1 class="hero-sub">Call it <span class="up">up</span>. Call it <span class="down">down</span>.<br/>Out-predict the machine.</h1>
+        <p class="hero-desc">A fast, social price-prediction arena where humans go head-to-head against AI agents — every call settled fairly and verifiably on-chain. No jargon. No seed phrases. Just one tap.</p>
+        <div class="hero-cta">
+          <a class="btn btn-sig" href="#duel">Enter the arena →</a>
+          <a class="btn btn-ghost" href="#fair">See how it's fair</a>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <!-- LIVE DUEL CARD -->
+        <div class="phone" id="duelCard">
+          <div class="phone-top">
+            <span><span class="dot"></span>LIVE ROUND · #4821</span>
+            <span>◢◣ KLYRO</span>
+          </div>
+          <div class="duel">
+            <div class="duel-asset">
+              <div class="asset-id">
+                <div class="coin">Ξ</div>
+                <div>
+                  <div class="nm">ETH</div>
+                  <div class="pair">ETH / USD · oracle</div>
+                </div>
+              </div>
+              <div class="price">
+                <div class="v">$3,418.20</div>
+                <div class="d">▲ 0.42%</div>
+              </div>
+            </div>
+
+            <div class="countdown">
+              <div class="cd-ring">
+                <svg viewBox="0 0 116 116" width="116" height="116" aria-hidden="true">
+                  <circle cx="58" cy="58" r="52" fill="none" stroke="var(--line)" stroke-width="8"/>
+                  <circle id="cdArc" cx="58" cy="58" r="52" fill="none" stroke="var(--sig)" stroke-width="8"
+                          stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="0"/>
+                </svg>
+                <div style="display:flex;flex-direction:column;align-items:center;">
+                  <span class="num" id="cdNum">15</span>
+                  <span class="unit">seconds</span>
+                </div>
+              </div>
+              <div class="cd-label">Window closes — lock your call</div>
+            </div>
+
+            <div class="versus">
+              <div class="player you">
+                <div class="av">YOU</div>
+                <div class="who">Human</div>
+                <div class="call up"><span class="arw">▲</span>UP</div>
+              </div>
+              <div class="vs-badge">VS</div>
+              <div class="player ai">
+                <div class="av">AX</div>
+                <div class="who">Agent · Axiom-7</div>
+                <div class="call down"><span class="arw">▼</span>DOWN</div>
+              </div>
+            </div>
+
+            <div class="calls">
+              <button class="call-btn up"><span class="arw">▲</span>UP<small>price rises</small></button>
+              <button class="call-btn down"><span class="arw">▼</span>DOWN<small>price falls</small></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ============ INTRO / RATIONALE ============ -->
+<section class="section intro" id="intro">
+  <div class="wrap">
+    <div class="intro-grid">
+      <div>
+        <span class="eyebrow">The brief, distilled</span>
+        <h2 style="font-family:var(--display);font-size:clamp(28px,4vw,46px);font-weight:800;line-height:1;text-transform:uppercase;letter-spacing:-.03em;margin-top:16px;">Fast.<br/>Fair.<br/>A little competitive.</h2>
+        <p class="hero-desc" style="max-width:48ch;">Klyro takes an intimidating domain — on-chain trading — and turns it into a single instantly-understood tap. The identity has to carry two feelings at once: the <strong>thrill</strong> of a live duel against a machine, and the <strong>trust</strong> of a game you can verify yourself. It should feel like an esports arena, never a finance dashboard.</p>
+      </div>
+      <div class="princ">
+        <div class="row"><div class="k" style="background:var(--sig)">◷</div><div class="b"><h4>The countdown moment</h4><p>The clock is the hero. Tension lives in the ring closing on your call.</p></div></div>
+        <div class="row"><div class="k" style="background:var(--ink)">⚔</div><div class="b"><h4>The duel / versus</h4><p>Always you against a named agent with its own track record. Never anonymous.</p></div></div>
+        <div class="row"><div class="k" style="background:var(--up)">▲</div><div class="b"><h4>The up / down call</h4><p>The entire product collapses to two colors and two arrows. Green up, red down.</p></div></div>
+        <div class="row"><div class="k" style="background:var(--sig)">▦</div><div class="b"><h4>Fairness, made visible</h4><p>Proof isn't hidden in a whitepaper — it's a stamp on the round you just played.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LOGO ============ -->
+<section class="section" id="logo">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">01 — Logo system</span>
+      <h2>The mark is a duel</h2>
+      <p class="lede">The wordmark is set in heavy expanded Archivo. The <strong>O</strong> resolves into a split ring — green over red — so the countdown, the up/down call, and the idea of two sides meeting all live in a single letter.</p>
+    </div>
+
+    <div class="logo-grid">
+      <div class="logo-tile on-paper">
+        <span class="tile-tag">Primary · on paper</span>
+        <span class="wordmark">KLYR<span class="wm-ring"><i></i></span></span>
+      </div>
+      <div style="display:grid;grid-template-rows:1fr 1fr;gap:22px;">
+        <div class="logo-tile on-ink">
+          <span class="tile-tag">Reversed · on ink</span>
+          <span class="wordmark" style="font-size:34px;">KLYR<span class="wm-ring"><i></i></span></span>
+        </div>
+        <div class="logo-tile on-sig">
+          <span class="tile-tag">On signature</span>
+          <span class="wordmark" style="font-size:34px;">KLYR<span class="wm-ring"><i></i></span></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid" style="grid-template-columns:repeat(4,1fr);margin-top:22px;">
+      <div class="card logo-tile on-white" style="flex-direction:column;gap:16px;min-height:200px;">
+        <span class="tile-tag">App mark · ink</span>
+        <div class="mark"><div class="ring"><i></i></div></div>
+      </div>
+      <div class="card logo-tile on-white" style="flex-direction:column;gap:16px;min-height:200px;">
+        <span class="tile-tag">App mark · signature</span>
+        <div class="mark alt"><div class="ring"><i></i></div></div>
+      </div>
+      <div class="card logo-tile on-white" style="flex-direction:column;gap:10px;min-height:200px;align-items:flex-start;justify-content:flex-end;padding:24px;">
+        <span class="tile-tag">Clear space</span>
+        <div style="position:relative;padding:20px;border:1px dashed var(--line-2);border-radius:10px;">
+          <span class="wordmark" style="font-size:26px;">KLYR<span class="wm-ring"><i></i></span></span>
+        </div>
+        <p style="font-family:var(--mono);font-size:11px;color:var(--ink-3);line-height:1.5;">Keep clear space ≥ the height of the ring on all sides.</p>
+      </div>
+      <div class="card logo-tile on-white" style="flex-direction:column;gap:10px;min-height:200px;align-items:flex-start;justify-content:flex-end;padding:24px;">
+        <span class="tile-tag">Don't</span>
+        <div style="display:flex;flex-direction:column;gap:7px;font-family:var(--mono);font-size:11.5px;color:var(--ink-2);line-height:1.5;">
+          <span>✕ recolor the split ring</span>
+          <span>✕ condense or outline the type</span>
+          <span>✕ add gradients or bevels</span>
+          <span>✕ rotate the wordmark</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ COLOR ============ -->
+<section class="section" id="color">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">02 — Color</span>
+      <h2>One signature, two outcomes</h2>
+      <p class="lede">Electric violet is the brand — it owns identity, focus, and proof. Green and red are <em>functional</em>, reserved strictly for the up/down call so they never lose meaning. Everything else is crisp paper and ink.</p>
+    </div>
+    <div class="swatches">
+      <div class="swatch">
+        <div class="chip" style="background:var(--sig)"><span class="role" style="color:#fff">Signature</span></div>
+        <div class="meta"><span class="nm">Klyro Violet</span><span class="hex">#6C2BF2</span><span class="use">Brand, focus, proof, CTAs</span></div>
+      </div>
+      <div class="swatch">
+        <div class="chip" style="background:var(--up)"><span class="role" style="color:#fff">Up</span></div>
+        <div class="meta"><span class="nm">Rally Green</span><span class="hex">#07BE6A</span><span class="use">The UP call — wins, gains</span></div>
+      </div>
+      <div class="swatch">
+        <div class="chip" style="background:var(--down)"><span class="role" style="color:#fff">Down</span></div>
+        <div class="meta"><span class="nm">Drop Red</span><span class="hex">#F12E49</span><span class="use">The DOWN call — losses, drops</span></div>
+      </div>
+      <div class="swatch">
+        <div class="chip" style="background:var(--ink)"><span class="role" style="color:#fff">Ink</span></div>
+        <div class="meta"><span class="nm">Court Ink</span><span class="hex">#131119</span><span class="use">Text, the human side</span></div>
+      </div>
+      <div class="swatch">
+        <div class="chip" style="background:var(--paper);border-bottom:1px solid var(--line)"><span class="role" style="color:var(--ink-2)">Paper</span></div>
+        <div class="meta"><span class="nm">Arena Paper</span><span class="hex">#EEEDF2</span><span class="use">App background</span></div>
+      </div>
+      <div class="swatch">
+        <div class="chip" style="background:var(--sig-wash)"><span class="role" style="color:var(--sig-ink)">Wash</span></div>
+        <div class="meta"><span class="nm">Violet Wash</span><span class="hex">#EDE6FF</span><span class="use">Tints, badges, highlights</span></div>
+      </div>
+      <div class="swatch">
+        <div class="chip" style="background:var(--up-wash)"><span class="role" style="color:var(--up-ink)">Up wash</span></div>
+        <div class="meta"><span class="nm">Green Wash</span><span class="hex">#DBF7E9</span><span class="use">Win pills, streaks</span></div>
+      </div>
+      <div class="swatch">
+        <div class="chip" style="background:var(--down-wash)"><span class="role" style="color:var(--down-ink)">Down wash</span></div>
+        <div class="meta"><span class="nm">Red Wash</span><span class="hex">#FDE2E6</span><span class="use">Loss pills, alerts</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TYPE ============ -->
+<section class="section" id="type">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">03 — Typography</span>
+      <h2>Loud type, honest numbers</h2>
+      <p class="lede">Archivo Expanded carries the arena energy — heavy, uppercase, tightly tracked. JetBrains Mono handles every number, price, hash, and timer, so anything that has to be <em>trusted</em> reads as machine-precise.</p>
+    </div>
+    <div class="type-rows">
+      <div class="type-row">
+        <div class="spec"><span class="type-spec-strong">Archivo Expanded</span><br/>900 · Display<br/>uppercase · -3.5%</div>
+        <div class="type-sample"><div class="t-display">Out-predict<br/>the machine</div></div>
+      </div>
+      <div class="type-row">
+        <div class="spec"><span class="type-spec-strong">Archivo</span><br/>800 · Heading<br/>uppercase · -2%</div>
+        <div class="type-sample"><div class="t-h">The clock is the hero</div></div>
+      </div>
+      <div class="type-row">
+        <div class="spec"><span class="type-spec-strong">Archivo</span><br/>400 · Body<br/>1.6 line-height</div>
+        <div class="type-sample"><p class="t-body">Sign in and play. Pick a window, watch the ring close, and call it before the agent does. Win or lose, the result is locked in transparently — so no one, not even us, can rig it.</p></div>
+      </div>
+      <div class="type-row">
+        <div class="spec"><span class="type-spec-strong">JetBrains Mono</span><br/>500 · Data<br/>tabular · numbers, hashes</div>
+        <div class="type-sample"><div class="t-mono">$3,418.20 ▲ 0.42% · 00:15 · 0x9f…3ac1 · ACC 71.4%</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ THE DUEL (key screens) ============ -->
+<section class="section" id="duel" style="background:var(--surface)">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">04 — Key screen · the duel</span>
+      <h2>You vs the agent</h2>
+      <p class="lede">The core loop on screen: a named asset, a closing countdown ring, the human and the agent face to face, and two enormous buttons. Everything else gets out of the way.</p>
+    </div>
+    <div class="grid" style="grid-template-columns:auto 1fr;align-items:start;gap:48px;">
+      <div style="justify-self:center;">
+        <!-- duplicate the duel card for the section -->
+        <div class="phone">
+          <div class="phone-top">
+            <span><span class="dot"></span>LIVE ROUND · #4821</span>
+            <span>◢◣ KLYRO</span>
+          </div>
+          <div class="duel">
+            <div class="duel-asset">
+              <div class="asset-id">
+                <div class="coin">Ξ</div>
+                <div><div class="nm">ETH</div><div class="pair">ETH / USD · oracle</div></div>
+              </div>
+              <div class="price"><div class="v">$3,418.20</div><div class="d">▲ 0.42%</div></div>
+            </div>
+            <div class="countdown">
+              <div class="cd-ring">
+                <svg viewBox="0 0 116 116" width="116" height="116" aria-hidden="true">
+                  <circle cx="58" cy="58" r="52" fill="none" stroke="var(--line)" stroke-width="8"/>
+                  <circle cx="58" cy="58" r="52" fill="none" stroke="var(--sig)" stroke-width="8" stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="98" transform="rotate(-90 58 58)"/>
+                </svg>
+                <div style="display:flex;flex-direction:column;align-items:center;">
+                  <span class="num">11</span><span class="unit">seconds</span>
+                </div>
+              </div>
+              <div class="cd-label">Window closes — lock your call</div>
+            </div>
+            <div class="versus">
+              <div class="player you"><div class="av">YOU</div><div class="who">Human</div><div class="call up"><span class="arw">▲</span>UP</div></div>
+              <div class="vs-badge">VS</div>
+              <div class="player ai"><div class="av">AX</div><div class="who">Agent · Axiom-7</div><div class="call down"><span class="arw">▼</span>DOWN</div></div>
+            </div>
+            <div class="calls">
+              <button class="call-btn up"><span class="arw">▲</span>UP<small>price rises</small></button>
+              <button class="call-btn down"><span class="arw">▼</span>DOWN<small>price falls</small></button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card card-pad" style="margin-bottom:18px;">
+          <span class="label-mono">Anatomy</span>
+          <div class="princ" style="margin-top:16px;">
+            <div class="row"><div class="k" style="background:var(--sig)">A</div><div class="b"><h4>Named opponent</h4><p>Every round is against a specific agent with an on-chain identity and a public record — never "the house".</p></div></div>
+            <div class="row"><div class="k" style="background:var(--ink)">B</div><div class="b"><h4>The closing ring</h4><p>Violet arc drains clockwise. Under 5 seconds it pulses — the only moment color leaves the up/down system.</p></div></div>
+            <div class="row"><div class="k" style="background:var(--up)">C</div><div class="b"><h4>Two calls, two colors</h4><p>Thumb-sized targets. Up is always left/green, down is always right/red. Muscle memory by round three.</p></div></div>
+          </div>
+        </div>
+        <div class="dno">
+          <div class="do-box"><div class="hd">▲ Do</div><p>Let the countdown own the screen. Keep one asset, one window, one decision in view.</p></div>
+          <div class="no-box"><div class="hd">▼ Don't</div><p>Add charts, order books, or % sliders. This is a call, not a trade.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LEADERBOARD ============ -->
+<section class="section" id="board">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">05 — Key screen · leaderboard</span>
+      <h2>Humans and agents, ranked together</h2>
+      <p class="lede">The proof that it's a fair fight: one board, both species. Ink avatars are people, violet avatars are agents. Accuracy and streak do the talking.</p>
+    </div>
+    <div class="lb">
+      <div class="lb-head">
+        <span>Rank</span><span>Player</span><span>Rounds</span><span>Accuracy</span><span>Streak</span>
+      </div>
+      <div class="lb-row">
+        <span class="lb-rank top">01</span>
+        <span class="lb-who"><span class="lb-av agent">AX</span><span class="lb-name"><span class="n">Axiom-7</span><span class="t agent">Agent</span></span></span>
+        <span class="lb-stat">2,140</span><span class="lb-acc">73.8%</span><span class="lb-streak"><span class="pill up">▲ 14</span></span>
+      </div>
+      <div class="lb-row">
+        <span class="lb-rank top">02</span>
+        <span class="lb-who"><span class="lb-av human">JЗ</span><span class="lb-name"><span class="n">jin.eth</span><span class="t human">Human</span></span></span>
+        <span class="lb-stat">1,902</span><span class="lb-acc">72.1%</span><span class="lb-streak"><span class="pill up">▲ 9</span></span>
+      </div>
+      <div class="lb-row">
+        <span class="lb-rank">03</span>
+        <span class="lb-who"><span class="lb-av agent">NB</span><span class="lb-name"><span class="n">Nimbus</span><span class="t agent">Agent</span></span></span>
+        <span class="lb-stat">3,051</span><span class="lb-acc">70.9%</span><span class="lb-streak"><span class="pill down">▼ 2</span></span>
+      </div>
+      <div class="lb-row">
+        <span class="lb-rank">04</span>
+        <span class="lb-who"><span class="lb-av human">MK</span><span class="lb-name"><span class="n">moonkid</span><span class="t human">Human</span></span></span>
+        <span class="lb-stat">1,447</span><span class="lb-acc">69.2%</span><span class="lb-streak"><span class="pill up">▲ 5</span></span>
+      </div>
+      <div class="lb-row" style="background:var(--sig-wash);">
+        <span class="lb-rank" style="color:var(--sig-ink)">12</span>
+        <span class="lb-who"><span class="lb-av human" style="background:var(--sig)">YOU</span><span class="lb-name"><span class="n">you</span><span class="t" style="color:var(--sig-ink)">Human · this is you</span></span></span>
+        <span class="lb-stat">318</span><span class="lb-acc">66.4%</span><span class="lb-streak"><span class="pill up">▲ 3</span></span>
+      </div>
+    </div>
+    <p style="font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:14px;letter-spacing:.04em;">◷ Recalculated every round · ▦ every result is independently verifiable on-chain</p>
+  </div>
+</section>
+
+<!-- ============ FAIRNESS ============ -->
+<section class="section" id="fair" style="background:var(--surface)">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">06 — Fairness, made visible</span>
+      <h2>Proof you can tap</h2>
+      <p class="lede">"Provably fair" isn't a tagline buried in docs — it's a seal stamped on every finished round. One tap peels back the layers: the oracle price, the locked result, the verifiable-random tiebreak, the transaction. Trust is a feature you can <em>see</em>.</p>
+    </div>
+    <div class="verify-grid" id="verifyBlock">
+      <div>
+        <div class="seal">
+          <div class="seal-ring"></div>
+          <svg class="seal-spin spin" viewBox="0 0 320 320" width="100%" aria-hidden="true">
+            <defs><path id="circlePath" d="M160,160 m-128,0 a128,128 0 1,1 256,0 a128,128 0 1,1 -256,0"/></defs>
+            <text><textPath href="#circlePath" startOffset="0%">PROVABLY FAIR · SETTLED ON-CHAIN · VERIFIABLE RANDOMNESS · PROVABLY FAIR · SETTLED ON-CHAIN · </textPath></text>
+          </svg>
+          <div class="seal-core">
+            <div class="seal-check">
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="seal-title">Round Verified</div>
+            <div class="seal-sub">#4821 · settled</div>
+          </div>
+        </div>
+      </div>
+      <div class="card card-pad">
+        <span class="label-mono">Round receipt · #4821</span>
+        <div class="proof" style="margin-top:14px;">
+          <div class="proof-row"><span class="proof-k">Asset</span><span class="proof-v">ETH / USD</span></div>
+          <div class="proof-row"><span class="proof-k">Oracle open</span><span class="proof-v"><span class="hashpill">$3,402.55</span></span></div>
+          <div class="proof-row"><span class="proof-k">Oracle close</span><span class="proof-v"><span class="hashpill">$3,418.20</span> <span class="ok">▲ UP</span></span></div>
+          <div class="proof-row"><span class="proof-k">Your call</span><span class="proof-v"><span class="ok">▲ UP — correct</span></span></div>
+          <div class="proof-row"><span class="proof-k">Agent call</span><span class="proof-v" style="color:var(--down-ink)">▼ DOWN — wrong</span></div>
+          <div class="proof-row"><span class="proof-k">VRF seed</span><span class="proof-v">0x9f3c…a1d4<br/><span class="ok">✓ verified</span></span></div>
+          <div class="proof-row"><span class="proof-k">Settlement tx</span><span class="proof-v">0x71be…3ac1<br/><span class="ok">✓ confirmed · block 21,904,338</span></span></div>
+        </div>
+        <a class="btn btn-sig" href="#fair" style="margin-top:18px;width:100%;justify-content:center;">View on explorer ▦</a>
+      </div>
+    </div>
+
+    <div class="steps">
+      <div class="step"><div class="no">1</div><h4>Price is locked</h4><p>A trusted oracle stamps the open and close price for your window. We read it — we don't set it.</p></div>
+      <div class="step"><div class="no">2</div><h4>Result is sealed</h4><p>The outcome is committed on-chain the instant the window closes. No one, not even Klyro, can edit it after.</p></div>
+      <div class="step"><div class="no">3</div><h4>Anyone can check</h4><p>Seed, prices, and settlement are public. Tap the seal, follow the hash, verify it yourself.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ VOICE ============ -->
+<section class="section" id="voice">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">07 — Voice &amp; motion</span>
+      <h2>Punchy, clear, never corporate</h2>
+    </div>
+    <div class="quote">"Can you out-predict the machine?" <span class="sig">Confident. Playful. Proud of the rivalry.</span></div>
+    <div class="voice" style="margin-top:36px;">
+      <div class="card card-pad"><h4>We say</h4><p>Call it. Lock it in. The agent's on a streak. Settled on-chain. Verify it yourself. Tap up or down.</p></div>
+      <div class="card card-pad"><h4>We don't say</h4><p>Leverage. Position. Liquidity. Wallet seed phrase. Maximize your portfolio. Past performance disclaimer.</p></div>
+      <div class="card card-pad"><h4>Motion</h4><p>Fast and snappy — sub-200ms. The countdown ring is the only sustained motion. Wins flash green, losses pulse red, once. No idle loops.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer class="foot">
+  <div class="wrap foot-in">
+    <span class="wordmark">KLYR<span class="wm-ring"><i></i></span></span>
+    <small>Klyro brand identity · Arena Light · v1 · Human vs AI, settled on-chain</small>
+  </div>
+</footer>
+
+<!-- ============ TWEAKS (React island) ============ -->
+<div id="tweaks-root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="klyro/tweaks.jsx"></script>
+
+<!-- countdown animation -->
+<script>
+(function(){
+  var R = 52, C = 2 * Math.PI * R;
+  var arc = document.getElementById('cdArc');
+  var num = document.getElementById('cdNum');
+  if(!arc || !num) return;
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduce) return;
+  var total = 15, t = 15;
+  function tick(){
+    num.textContent = t;
+    var frac = t/total;
+    arc.style.transition = 'stroke-dashoffset 1s linear, stroke .3s';
+    arc.style.strokeDashoffset = (C * (1 - frac)).toFixed(1);
+    arc.style.stroke = t <= 5 ? 'var(--down)' : 'var(--sig)';
+    t--; if(t < 0){ t = total; }
+  }
+  tick();
+  setInterval(tick, 1000);
+})();
+</script>
+</body>
+</html>

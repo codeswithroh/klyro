@@ -1,0 +1,107 @@
+@import url('https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700&family=Archivo+Expanded:wght@600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---- Design tokens ---- */
+:root {
+  --paper:    #EEEDF2;
+  --paper-2:  #E6E5EC;
+  --surface:  #FFFFFF;
+  --ink:      #131119;
+  --ink-2:    #565463;
+  --ink-3:    #8B8995;
+  --line:     #E0DFE8;
+  --line-2:   #D2D1DC;
+
+  --sig:      #6C2BF2;
+  --sig-2:    #9A6BFF;
+  --sig-ink:  #3B1690;
+  --sig-wash: #EDE6FF;
+
+  --up:       #07BE6A;
+  --up-ink:   #04713F;
+  --up-wash:  #DBF7E9;
+  --down:     #F12E49;
+  --down-ink: #97122A;
+  --down-wash:#FDE2E6;
+
+  --display: 'Archivo Expanded', 'Archivo', system-ui, sans-serif;
+  --sans:    'Archivo', system-ui, sans-serif;
+  --mono:    'JetBrains Mono', ui-monospace, monospace;
+
+  --r-sm: 8px;
+  --r:    14px;
+  --r-lg: 22px;
+  --r-xl: 32px;
+  --shadow-sm: 0 1px 0 rgba(19,17,25,.04), 0 2px 6px rgba(19,17,25,.05);
+  --shadow:    0 2px 4px rgba(19,17,25,.04), 0 12px 28px rgba(19,17,25,.08);
+  --shadow-lg: 0 8px 18px rgba(19,17,25,.07), 0 30px 60px rgba(19,17,25,.12);
+  --shadow-sig:0 16px 40px rgba(108,43,242,.28);
+}
+
+/* Dark / Neon Night mode */
+[data-theme="night"] {
+  --paper:   #0C0B12;
+  --paper-2: #13111C;
+  --surface: #1A1726;
+  --ink:     #F4F3F8;
+  --ink-2:   #A6A3B5;
+  --ink-3:   #6E6B7E;
+  --line:    #272336;
+  --line-2:  #332E47;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: var(--sans);
+  background: var(--paper);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+/* Wordmark ring — the split O */
+.wm-ring {
+  display: inline-block;
+  position: relative;
+  border-radius: 50%;
+  vertical-align: baseline;
+}
+.wm-ring i {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 0.14em solid transparent;
+  border-top-color: var(--up);
+  border-right-color: var(--up);
+  border-bottom-color: var(--down);
+  border-left-color: var(--down);
+  transform: rotate(-45deg);
+}
+
+.wordmark {
+  font-family: var(--display);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+/* Countdown ring animation */
+@keyframes countdown-drain {
+  from { stroke-dashoffset: 0; }
+  to   { stroke-dashoffset: 326.7; }
+}
+
+/* Call button press */
+.call-btn:active { transform: scale(0.97); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
