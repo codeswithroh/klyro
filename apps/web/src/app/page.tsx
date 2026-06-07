@@ -9,18 +9,6 @@ export default function LandingPage() {
       <section className="px-7 pt-16 pb-20 max-w-[1160px] mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-10 items-center">
           <div>
-            <div className="flex items-center gap-3 mb-6 flex-wrap">
-              <span className="font-mono text-[11px] font-semibold tracking-[.14em] uppercase px-3 py-1.5 rounded-full bg-sig-wash text-sig-ink">
-                Brand Identity v1
-              </span>
-              <span className="font-mono text-[11px] font-semibold tracking-[.14em] uppercase px-3 py-1.5 rounded-full border border-line-2 bg-surface text-ink-2">
-                Mantle Sepolia
-              </span>
-              <span className="font-mono text-[11px] font-semibold tracking-[.14em] uppercase px-3 py-1.5 rounded-full border border-line-2 bg-surface text-ink-2">
-                Human <span className="text-ink-3">vs</span> AI
-              </span>
-            </div>
-
             <div className="flex items-center font-display font-black uppercase leading-[.8] tracking-[-0.045em]"
               style={{ fontSize: 'clamp(72px, 16vw, 180px)' }}>
               KLYR<span className="wm-ring" style={{ width: '0.82em', height: '0.82em', margin: '0 0.005em' }}><i /></span>
