@@ -19,6 +19,7 @@ import { useActiveAccount } from 'thirdweb/react'
 import { usePythPrice } from '@/lib/hooks/usePythPrice'
 import { useLockPrediction } from '@/lib/hooks/useRound'
 import { useChainRound, CONTRACTS_LIVE } from '@/lib/hooks/useChainRound'
+import { useOpenRound } from '@/lib/hooks/useOpenRound'
 import { useRoundStore, type Call } from '@/lib/store/roundStore'
 import { useIdlePriceTick } from '@/lib/hooks/useIdlePriceTick'
 import { CountdownRing } from './CountdownRing'
@@ -55,6 +56,7 @@ export function ArenaView() {
 
   // ── On-chain prediction submission ──────────────────────────────────────────
   const { lockPrediction, isPending, isConfirming, isConfirmed, txHash, error: txError } = useLockPrediction()
+  const { openRound, isOpening, status: openStatus, error: openError } = useOpenRound()
 
   // ── Local call state ─────────────────────────────────────────────────────────
   const [humanCall, setHumanCall] = useState<Call | null>(null)
@@ -380,21 +382,45 @@ export function ArenaView() {
                 )}
               </>
             ) : CONTRACTS_LIVE ? (
-              /* Waiting for bot to open next round */
-              <div className="my-8 flex flex-col items-center gap-4">
+              /* No open round — let the user open one, or wait for the bot */
+              <div className="my-6 flex flex-col items-center gap-4">
                 {loadingRound ? (
-                  <div className="font-mono text-[12px] text-ink-3 uppercase tracking-[.1em] animate-pulse">
-                    Checking chain…
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-7 h-7 rounded-full border-2 border-sig border-t-transparent animate-spin" />
+                    <div className="font-mono text-[11px] text-ink-3 uppercase tracking-[.1em]">
+                      Checking chain…
+                    </div>
                   </div>
                 ) : (
                   <>
-                    <div className="font-mono text-[12px] text-ink-3 uppercase tracking-[.1em] text-center">
-                      Next round opens in ~{chainRound?.resolved ? '10s' : '…'}
-                    </div>
-                    <div className="w-8 h-8 rounded-full border-2 border-sig border-t-transparent animate-spin" />
-                    <div className="font-mono text-[10px] text-ink-3 text-center">
-                      Axiom-7 is opening a fresh round
-                    </div>
+                    <p className="font-mono text-[11px] text-ink-3 uppercase tracking-[.08em] text-center">
+                      No active round
+                    </p>
+
+                    {/* Open status / error */}
+                    {(openStatus || openError) && (
+                      <div className={`px-3 py-2 rounded text-center font-mono text-[10px] tracking-[.08em] uppercase w-full ${openError ? 'bg-down-wash text-down-ink' : 'bg-sig-wash text-sig-ink animate-pulse'}`}>
+                        {openError ?? openStatus}
+                      </div>
+                    )}
+
+                    {/* Open round button (requires wallet + gas) */}
+                    {isConnected ? (
+                      <button
+                        onClick={() => openRound('ETH/USD', 60)}
+                        disabled={isOpening}
+                        className="font-mono font-semibold text-[13px] tracking-[.04em] uppercase bg-sig text-white px-7 py-3 rounded-full shadow-sig disabled:opacity-60 disabled:cursor-not-allowed transition-opacity"
+                      >
+                        {isOpening ? 'Opening…' : 'Open a round →'}
+                      </button>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2">
+                        <WalletButton />
+                        <p className="font-mono text-[10px] text-ink-3 text-center">
+                          Connect to open a round or wait for the bot
+                        </p>
+                      </div>
+                    )}
                   </>
                 )}
               </div>
