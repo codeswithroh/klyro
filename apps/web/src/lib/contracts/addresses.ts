@@ -12,6 +12,10 @@ export const CONTRACTS = {
   AgentRegistry:       process.env.NEXT_PUBLIC_AGENT_REGISTRY_ADDRESS       ?? ZERO,
 } as const
 
+// Axiom-7 bot wallet — used to read its actual on-chain prediction
+export const AGENT_WALLET = process.env.NEXT_PUBLIC_AGENT_WALLET
+  ?? '0xC557BBc3351B1CcbbDa556b8001736beb28A7A0B'
+
 // Pyth Network on Mantle Sepolia
 export const PYTH_ADDRESS = process.env.NEXT_PUBLIC_PYTH_ADDRESS
   ?? '0x98046Bd286715D3B0BC227Dd7a956b83D8978603'

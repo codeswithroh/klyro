@@ -4,7 +4,7 @@
  * always an active round for players to join.
  */
 
-import { createPublicClient, createWalletClient, http, encodeFunctionData } from 'viem'
+import { createPublicClient, createWalletClient, http, type PublicClient, type WalletClient } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { config } from './config.js'
 import { mantleSepolia } from './chain.js'
@@ -63,7 +63,10 @@ async function fetchVAAs(feedIds: string[]): Promise<{ vaas: `0x${string}`[]; pr
   const idsParam = feedIds.map((id) => `ids[]=${id}`).join('&')
   const url = `${HERMES_BASE}?${idsParam}&encoding=hex&parsed=true`
   const res = await fetch(url)
-  if (!res.ok) throw new Error(`Hermes error: ${res.status}`)
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new Error(`Hermes error: ${res.status} — ${body.slice(0, 120)}`)
+  }
   const data = await res.json()
 
   const vaas: `0x${string}`[] = (data.binary?.data ?? []).map((v: string) => `0x${v}` as `0x${string}`)
@@ -103,28 +106,54 @@ async function pushPriceAndOpenRound(asset: string, durationSeconds: number): Pr
     log('getUpdateFee unavailable, using 1 wei')
   }
 
-  // Push price update
-  log(`Pushing price on-chain (fee: ${fee} wei)…`)
-  const updateHash = await walletClient.writeContract({
-    address: PYTH_ADDRESS,
-    abi: PYTH_ABI,
-    functionName: 'updatePriceFeeds',
-    args: [vaas],
-    value: fee,
-  })
-  await publicClient.waitForTransactionReceipt({ hash: updateHash })
-  log(`Price pushed ✓ (${updateHash})`)
+  // Single-tx: push price + open round atomically via openRoundWithPrice.
+  // Falls back to two-step if the deployed contract is the old one.
+  log(`Opening ${asset} round via openRoundWithPrice (fee: ${fee} wei)…`)
+  let receipt
+  try {
+    const openHash = await walletClient.writeContract({
+      address: config.roundManagerAddress,
+      abi: ROUND_MANAGER_ABI,
+      functionName: 'openRoundWithPrice',
+      args: [vaas, feedId, BigInt(durationSeconds)],
+      value: fee,
+      // Mantle Sepolia uses EIP-7623 calldata floor pricing — the VAA blob is
+      // ~900 bytes so auto-estimated gas consistently undershoots.  600k covers
+      // calldata floor + Pyth update + openRound execution with room to spare.
+      gas: 350_000n,
+    })
+    receipt = await publicClient.waitForTransactionReceipt({ hash: openHash })
+    log(`Round opened ✓ single-tx (${openHash})`)
+  } catch (e: unknown) {
+    const msg = (e as Error).message ?? ''
+    if (msg.includes('ContractFunctionExecutionError') || msg.includes('selector') || msg.includes('not found')) {
+      // Old contract — fall back to two-step
+      log('openRoundWithPrice not found, falling back to two-step…')
+      const updateHash = await walletClient.writeContract({
+        address: PYTH_ADDRESS,
+        abi: PYTH_ABI,
+        functionName: 'updatePriceFeeds',
+        args: [vaas],
+        value: fee,
+        gas: 350_000n,
+      })
+      await publicClient.waitForTransactionReceipt({ hash: updateHash })
+      log(`Price pushed ✓ (${updateHash})`)
 
-  // Open round
-  log(`Opening ${asset} round (${durationSeconds}s)…`)
-  const openHash = await walletClient.writeContract({
-    address: config.roundManagerAddress,
-    abi: ROUND_MANAGER_ABI,
-    functionName: 'openRound',
-    args: [feedId, BigInt(durationSeconds)],
-  })
-  const receipt = await publicClient.waitForTransactionReceipt({ hash: openHash })
-  log(`Round opened ✓ (${openHash})`)
+      log(`Opening ${asset} round (${durationSeconds}s)…`)
+      const openHash = await walletClient.writeContract({
+        address: config.roundManagerAddress,
+        abi: ROUND_MANAGER_ABI,
+        functionName: 'openRound',
+        args: [feedId, BigInt(durationSeconds)],
+        gas: 200_000n,
+      })
+      receipt = await publicClient.waitForTransactionReceipt({ hash: openHash })
+      log(`Round opened ✓ two-step (${openHash})`)
+    } else {
+      throw e
+    }
+  }
 
   // Extract roundId from RoundOpened event log
   // Event: RoundOpened(uint256 indexed roundId, ...)
@@ -132,6 +161,45 @@ async function pushPriceAndOpenRound(asset: string, durationSeconds: number): Pr
   const roundId = BigInt(receipt.logs[0]?.topics[1] ?? '0x1')
   log(`Round #${roundId} is live`)
   return roundId
+}
+
+/**
+ * pushFreshVAA — fetches the latest Pyth price VAA from Hermes and pushes it
+ * on-chain. Used before any contract call that reads Pyth price (openRound,
+ * resolveRound) so getPriceNoOlderThan never throws StalePrice.
+ *
+ * Accepts optional client overrides so index.ts can pass its own viem clients.
+ */
+export async function pushFreshVAA(
+  feedId: `0x${string}`,
+  pubClient: PublicClient = publicClient,
+  walClient: WalletClient = walletClient,
+) {
+  const { vaas, price } = await fetchVAAs([feedId])
+  if (vaas.length === 0) throw new Error('No VAAs from Hermes')
+
+  let fee = 1n
+  try {
+    fee = await pubClient.readContract({
+      address: PYTH_ADDRESS,
+      abi: PYTH_ABI,
+      functionName: 'getUpdateFee',
+      args: [vaas],
+    }) as bigint
+  } catch { /* 1 wei fallback */ }
+
+  const hash = await walClient.writeContract({
+    address: PYTH_ADDRESS,
+    abi: PYTH_ABI,
+    functionName: 'updatePriceFeeds',
+    args: [vaas],
+    value: fee,
+    gas: 350_000n,
+    account: walClient.account!,
+    chain: mantleSepolia,
+  })
+  await pubClient.waitForTransactionReceipt({ hash })
+  console.log(`[RoundOpener][${new Date().toISOString()}] Price pushed ✓ feed=${feedId.slice(0,10)}… price≈${price.toFixed(2)}`)
 }
 
 export async function startRoundOpener(durationSeconds = 60) {

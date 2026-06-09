@@ -16,7 +16,7 @@ import { config } from './config.js'
 import { mantleSepolia } from './chain.js'
 import { ROUND_MANAGER_ABI } from './abis.js'
 import { predictDirection } from './predictor.js'
-import { startRoundOpener } from './roundOpener.js'
+import { startRoundOpener, pushFreshVAA } from './roundOpener.js'
 
 // ── Clients ────────────────────────────────────────────────────────────────────
 
@@ -80,12 +80,18 @@ async function resolveIfNeeded(roundId: bigint) {
       abi: ROUND_MANAGER_ABI,
       functionName: 'getRound',
       args: [roundId],
-    }) as { resolved: boolean; closeTime: bigint }
+    }) as unknown as { resolved: boolean; closeTime: bigint; priceFeedId: `0x${string}` }
 
     if (round.resolved) return
 
     const now = BigInt(Math.floor(Date.now() / 1000))
     if (now < round.closeTime) return
+
+    // resolveRound calls getPriceNoOlderThan(feedId, 120) on the Pyth contract.
+    // On Mantle Sepolia nobody else pushes prices, so we must refresh the feed
+    // ourselves before resolving, otherwise it throws StalePrice (0x19abf40e).
+    log(`Round #${roundId}: pushing fresh price before resolve…`)
+    await pushFreshVAA(round.priceFeedId, publicClient, walletClient)
 
     log(`Round #${roundId}: resolving…`)
     const hash = await walletClient.writeContract({
@@ -168,14 +174,20 @@ async function catchUpOpenRounds() {
         abi: ROUND_MANAGER_ABI,
         functionName: 'getRound',
         args: [id],
-      }) as { priceFeedId: `0x${string}`; closeTime: bigint; resolved: boolean }
+      }) as unknown as { priceFeedId: `0x${string}`; closeTime: bigint; resolved: boolean }
 
       if (!round.resolved) {
         const now = BigInt(Math.floor(Date.now() / 1000))
         if (now < round.closeTime) {
-          // Round still open — register it
+          // Round still open — register it for prediction
           openRounds.set(id, { closeTime: round.closeTime, feedId: round.priceFeedId, submitted: false })
           log(`Caught up: round #${id} still open`)
+        } else {
+          // Round closed but unresolved (e.g. from a previous bot session) — resolve it now.
+          // Small delay between catchup resolutions to avoid Hermes rate-limiting.
+          log(`Caught up: round #${id} closed but unresolved — resolving…`)
+          await sleep(1500)
+          await resolveIfNeeded(id)
         }
       }
     } catch { /* round doesn't exist yet */ }
@@ -193,8 +205,14 @@ async function main() {
   // Start resolve polling in background
   resolveLoop().catch((e) => log(`resolveLoop crashed: ${e.message}`))
 
-  // Open rounds on a fixed schedule (pushes fresh Pyth VAA before each open)
-  startRoundOpener(60).catch((e) => log(`RoundOpener crashed: ${e.message}`))
+  // Open rounds on a fixed schedule — only when explicitly enabled.
+  // Default: user opens rounds from the UI (ENABLE_AUTO_ROUND_OPENER=true to re-enable).
+  if (config.enableAutoRoundOpener) {
+    log('Auto round opener ENABLED — bot will open rounds every ~70s')
+    startRoundOpener(60).catch((e) => log(`RoundOpener crashed: ${e.message}`))
+  } else {
+    log('Auto round opener DISABLED — user controls round start from UI')
+  }
 
   // Mantle Sepolia RPC doesn't support eth_newFilter, so we poll getLogs manually.
   log('Polling for RoundOpened events every 4s…')

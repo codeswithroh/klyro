@@ -48,6 +48,31 @@ contract RoundManager {
 
     // ---- External ----
 
+    /// @notice Opens a round in a single tx by updating the Pyth price feed atomically.
+    /// @dev Send msg.value = Pyth fee (1 wei on testnet). This avoids the two-step
+    ///      updatePriceFeeds→openRound flow that requires two wallet confirmations.
+    function openRoundWithPrice(
+        bytes[] calldata updateData,
+        bytes32 priceFeedId,
+        uint256 durationSeconds
+    ) external payable returns (uint256 roundId) {
+        pyth.updatePriceFeeds{value: msg.value}(updateData);
+
+        PythPrice memory p = pyth.getPriceNoOlderThan(priceFeedId, 60);
+        roundId = nextRoundId++;
+        rounds[roundId] = Round({
+            priceFeedId: priceFeedId,
+            startPrice: p.price,
+            closePrice: 0,
+            startTime: uint64(block.timestamp),
+            closeTime: uint64(block.timestamp + durationSeconds),
+            resolved: false,
+            outcome: false
+        });
+
+        emit RoundOpened(roundId, priceFeedId, p.price, uint64(block.timestamp), uint64(block.timestamp + durationSeconds));
+    }
+
     /// @notice Opens a new prediction round.
     /// @param priceFeedId  Pyth price feed ID for the asset.
     /// @param durationSeconds  How long the window stays open.
@@ -76,6 +101,31 @@ contract RoundManager {
 
         registry.record(roundId, msg.sender, isUp);
         emit PredictionLocked(roundId, msg.sender, isUp);
+    }
+
+    /// @notice Resolves a round in a single tx by first refreshing the Pyth price.
+    /// @dev Send msg.value = Pyth fee (1 wei on testnet). Lets the frontend user
+    ///      settle rounds without relying on the bot wallet.
+    function resolveRoundWithPrice(bytes[] calldata updateData, uint256 roundId) external payable {
+        pyth.updatePriceFeeds{value: msg.value}(updateData);
+
+        Round storage r = rounds[roundId];
+        if (block.timestamp < r.closeTime) revert RoundNotClosed();
+        if (r.resolved) revert AlreadyResolved();
+
+        PythPrice memory p = pyth.getPriceNoOlderThan(r.priceFeedId, 120);
+        bool outcome = p.price > r.startPrice;
+
+        r.closePrice = p.price;
+        r.resolved = true;
+        r.outcome = outcome;
+
+        (address[] memory players, bool[] memory calls) = registry.getPredictions(roundId);
+        for (uint256 i = 0; i < players.length; i++) {
+            leaderboard.recordResult(players[i], calls[i] == outcome);
+        }
+
+        emit RoundResolved(roundId, p.price, outcome);
     }
 
     /// @notice Resolves a round using the Pyth closing price.

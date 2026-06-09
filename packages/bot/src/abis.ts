@@ -1,5 +1,16 @@
 export const ROUND_MANAGER_ABI = [
   {
+    name: 'openRoundWithPrice',
+    type: 'function' as const,
+    stateMutability: 'payable' as const,
+    inputs: [
+      { name: 'updateData',      type: 'bytes[]'  },
+      { name: 'priceFeedId',     type: 'bytes32'  },
+      { name: 'durationSeconds', type: 'uint256'  },
+    ],
+    outputs: [{ name: 'roundId', type: 'uint256' }],
+  },
+  {
     name: 'openRound',
     type: 'function' as const,
     stateMutability: 'nonpayable' as const,
@@ -11,14 +22,22 @@ export const ROUND_MANAGER_ABI = [
     type: 'function' as const,
     stateMutability: 'view' as const,
     inputs: [{ name: 'roundId', type: 'uint256' }],
+    // Must be a tuple to match on-chain ABI — viem returns an array for flat
+    // individual outputs, making named property access return undefined.
     outputs: [
-      { name: 'priceFeedId', type: 'bytes32' },
-      { name: 'startPrice',  type: 'int64'   },
-      { name: 'closePrice',  type: 'int64'   },
-      { name: 'startTime',   type: 'uint64'  },
-      { name: 'closeTime',   type: 'uint64'  },
-      { name: 'resolved',    type: 'bool'    },
-      { name: 'outcome',     type: 'bool'    },
+      {
+        name: '',
+        type: 'tuple' as const,
+        components: [
+          { name: 'priceFeedId', type: 'bytes32' },
+          { name: 'startPrice',  type: 'int64'   },
+          { name: 'closePrice',  type: 'int64'   },
+          { name: 'startTime',   type: 'uint64'  },
+          { name: 'closeTime',   type: 'uint64'  },
+          { name: 'resolved',    type: 'bool'    },
+          { name: 'outcome',     type: 'bool'    },
+        ],
+      },
     ],
   },
   {
@@ -44,6 +63,16 @@ export const ROUND_MANAGER_ABI = [
     stateMutability: 'view' as const,
     inputs:  [],
     outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    name: 'resolveRoundWithPrice',
+    type: 'function' as const,
+    stateMutability: 'payable' as const,
+    inputs: [
+      { name: 'updateData', type: 'bytes[]' },
+      { name: 'roundId',    type: 'uint256' },
+    ],
+    outputs: [],
   },
   {
     name: 'resolveRound',
