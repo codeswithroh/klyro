@@ -55,8 +55,8 @@ const viemPublicClient = createPublicClient({
 
 // Poll PredictionRegistry until the bot has submitted its on-chain call.
 // Returns the bot's call, or null if it never predicts within the timeout.
-async function pollBotPrediction(roundId: bigint, signal: AbortSignal): Promise<Call | null> {
-  const deadline = Date.now() + 55_000  // give up after 55s (round is 60s)
+async function pollBotPrediction(roundId: bigint, signal: AbortSignal, durationSeconds = 60): Promise<Call | null> {
+  const deadline = Date.now() + Math.max(durationSeconds - 5, 10) * 1000  // stop 5s before close
   while (Date.now() < deadline && !signal.aborted) {
     try {
       const predicted = await viemPublicClient.readContract({
@@ -247,15 +247,16 @@ export function ArenaView() {
   const { resolveRound, isResolving, error: resolveError, status: resolveStatus } = useResolveRound()
 
   // Local game state
-  const [humanCall,    setHumanCall]    = useState<Call | null>(null)
-  const [agentCall,    setAgentCall]    = useState<Call | null>(null)
-  const [txMsg,        setTxMsg]        = useState<string | null>(null)
-  const [resultShown,  setResultShown]  = useState(false)
-  const [frozenResult, setFrozenResult] = useState<FrozenResult | null>(null)
-  const [showToast,    setShowToast]    = useState(false)
-  const [waitingOpen,  setWaitingOpen]  = useState(false)
-  const prevRoundId                     = useRef<bigint | null>(null)
-  const autoSettledRoundId              = useRef<bigint | null>(null)
+  const [humanCall,        setHumanCall]        = useState<Call | null>(null)
+  const [agentCall,        setAgentCall]        = useState<Call | null>(null)
+  const [txMsg,            setTxMsg]            = useState<string | null>(null)
+  const [resultShown,      setResultShown]      = useState(false)
+  const [frozenResult,     setFrozenResult]     = useState<FrozenResult | null>(null)
+  const [showToast,        setShowToast]        = useState(false)
+  const [waitingOpen,      setWaitingOpen]      = useState(false)
+  const [selectedDuration, setSelectedDuration] = useState(60)
+  const prevRoundId                             = useRef<bigint | null>(null)
+  const autoSettledRoundId                      = useRef<bigint | null>(null)
 
   // Mock store
   useIdlePriceTick()
@@ -335,7 +336,7 @@ export function ArenaView() {
       const abort = new AbortController()
       botPollAbort.current = abort
       const roundId = chainRound.roundId
-      pollBotPrediction(roundId, abort.signal).then(botCall => {
+      pollBotPrediction(roundId, abort.signal, selectedDuration).then(botCall => {
         if (!abort.signal.aborted && botCall !== null) {
           setAgentCall(botCall)
         }
@@ -356,8 +357,7 @@ export function ArenaView() {
   async function handleStartRound() {
     setWaitingOpen(true)
     try {
-      await openRound('ETH/USD', 60)
-      // Force-refetch chain state so new round is detected quickly
+      await openRound('ETH/USD', selectedDuration)
       queryClient.invalidateQueries()
     } catch {
       setWaitingOpen(false)
@@ -398,7 +398,7 @@ export function ArenaView() {
   const displayAsset       = CONTRACTS_LIVE ? asset : mockAsset
   const displayPrice       = CONTRACTS_LIVE && livePrice !== null ? formatPrice(asset, livePrice) : mockFormattedPrice
   const displaySecondsLeft = CONTRACTS_LIVE ? (chainRound?.secondsLeft ?? 0) : mockSecondsLeft
-  const displayTotal       = CONTRACTS_LIVE ? 60 : mockTotalSeconds
+  const displayTotal       = CONTRACTS_LIVE ? (chainRound?.totalDuration ?? selectedDuration) : mockTotalSeconds
   const displayRoundId     = CONTRACTS_LIVE ? Number(chainRound?.roundId ?? 0) : mockRoundId
   const displayHumanCall   = CONTRACTS_LIVE ? humanCall : mockHumanCall
   const displayAgentCall   = CONTRACTS_LIVE ? agentCall : mockAgentCall
@@ -587,13 +587,44 @@ export function ArenaView() {
             <div className="font-display font-black text-[18px] text-white mb-1">
               Beat the AI
             </div>
-            <div className="font-mono text-[11px] text-white/40 leading-relaxed mb-5">
-              Predict if {displayAsset.split('/')[0]} will go higher or lower in 60 seconds.
+            <div className="font-mono text-[11px] text-white/40 leading-relaxed mb-4">
+              Predict if {displayAsset.split('/')[0]} will rise or fall in your chosen window.
               {CONTRACTS_LIVE && !isConnected && (
                 <span className="block mt-2 text-[#9A6BFF]">
                   Connect wallet via the button in the top bar to play.
                 </span>
               )}
+            </div>
+
+            {/* Duration picker */}
+            <div className="mb-4">
+              <div className="font-mono text-[9px] tracking-[.14em] uppercase text-white/25 mb-2">Round duration</div>
+              <div className="grid grid-cols-4 gap-1.5">
+                {[
+                  { s: 15, label: '15s', bonus: '4×' },
+                  { s: 30, label: '30s', bonus: '2×' },
+                  { s: 45, label: '45s', bonus: '1.5×' },
+                  { s: 60, label: '60s', bonus: '1×' },
+                ].map(({ s, label, bonus }) => {
+                  const active = selectedDuration === s
+                  return (
+                    <button key={s} onClick={() => setSelectedDuration(s)}
+                      className="flex flex-col items-center py-2 rounded-xl transition-all"
+                      style={{
+                        background: active ? 'rgba(108,43,242,0.25)' : 'rgba(255,255,255,0.04)',
+                        border: `1px solid ${active ? 'rgba(108,43,242,0.5)' : 'rgba(255,255,255,0.08)'}`,
+                      }}>
+                      <span className="font-mono font-bold text-[12px]"
+                        style={{ color: active ? '#9A6BFF' : 'rgba(255,255,255,0.5)' }}>{label}</span>
+                      <span className="font-mono text-[8px] tracking-[.06em] mt-0.5"
+                        style={{ color: active ? '#6C2BF2' : 'rgba(255,255,255,0.2)' }}>{bonus}</span>
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="font-mono text-[9px] text-white/20 mt-1.5 text-center">
+                Faster rounds earn more points · {selectedDuration}s selected
+              </div>
             </div>
 
             {openError && (
@@ -608,14 +639,14 @@ export function ArenaView() {
               </div>
             ) : (
               <button
-                onClick={CONTRACTS_LIVE ? handleStartRound : () => startMockRound(displayAsset, 60)}
+                onClick={CONTRACTS_LIVE ? handleStartRound : () => startMockRound(displayAsset, selectedDuration)}
                 disabled={CONTRACTS_LIVE && isOpening}
                 className="w-full py-3.5 rounded-xl font-mono font-bold text-[13px] uppercase tracking-[.08em] text-white disabled:opacity-60 disabled:cursor-not-allowed transition-all active:scale-[.97]"
                 style={{ background: 'linear-gradient(135deg, #6C2BF2, #7c3af5)',
                   boxShadow: '0 0 28px rgba(108,43,242,0.50)' }}>
                 {CONTRACTS_LIVE && isOpening
                   ? (openStatus ?? 'Opening round…')
-                  : '◼  Start Round  →'}
+                  : `◼  Start ${selectedDuration}s Round  →`}
               </button>
             )}
           </div>
@@ -824,6 +855,7 @@ export function ArenaView() {
           closePrice={frozenResult.closePriceHuman}
           roundId={frozenResult.roundId}
           txHash={CONTRACTS_LIVE ? txHash : undefined}
+          duration={displayTotal}
           onPlayAgain={CONTRACTS_LIVE ? handlePlayAgain : resetMock}
         />
       )}

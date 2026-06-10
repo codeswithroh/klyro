@@ -29,6 +29,7 @@ export interface ChainRound {
   outcome: boolean        // true = price went UP
   isOpen: boolean
   secondsLeft: number     // live countdown derived from closeTime
+  totalDuration: number   // closeTime - startTime
   startPriceHuman: number // human-readable price (startPrice / 1e8)
 }
 
@@ -107,6 +108,7 @@ export function useChainRound() {
         outcome: round.outcome,
         isOpen,
         secondsLeft: sLeft,
+        totalDuration: round ? Math.max(15, Number(round.closeTime) - Number(round.startTime)) : 60,
         startPriceHuman: rawToHuman(round.startPrice),
       }
     : null

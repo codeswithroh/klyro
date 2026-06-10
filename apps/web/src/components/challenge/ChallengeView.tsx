@@ -17,7 +17,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRoundStore, type Call } from '@/lib/store/roundStore'
 import { useIdlePriceTick } from '@/lib/hooks/useIdlePriceTick'
-import { classifyBattle } from '@/components/arena/ResultModal'
+import { classifyBattle, calcPoints, getDurationMultiplier } from '@/components/arena/ResultModal'
 import Link from 'next/link'
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -269,19 +269,21 @@ function BetweenRoundCard({
 // ── Final challenge report ────────────────────────────────────────────────────
 
 function FinalReport({
-  records, humanScore, agentScore, totalRounds, difficulty, onRematch, onHome,
+  records, humanScore, agentScore, totalRounds, difficulty, roundDuration, onRematch, onHome,
 }: {
   records: RoundRecord[]; humanScore: number; agentScore: number
-  totalRounds: number; difficulty: Difficulty; onRematch: () => void; onHome: () => void
+  totalRounds: number; difficulty: Difficulty; roundDuration: number
+  onRematch: () => void; onHome: () => void
 }) {
   const humanWon = humanScore > agentScore
   const tied = humanScore === agentScore
-  const outcome = tied ? 'draw' : humanWon ? 'win' : 'lose'
+
+  // Total pts earned this match
+  const totalPts = records.reduce((sum, r) => sum + calcPoints(r.verdict, roundDuration), 0)
 
   // Overall strategy: most common call direction
   const upCalls = records.filter(r => r.humanCall === 'up').length
   const downCalls = records.length - upCalls
-  const mostCorrect = records.filter(r => r.verdict !== 'lose')
   const analysis = records.length > 0
     ? classifyBattle(
         records[records.length - 1].humanCall,
@@ -302,10 +304,10 @@ function FinalReport({
 
   const BASE_URL = typeof window !== 'undefined' ? window.location.origin : 'https://klyro.xyz'
   const shareText = humanWon
-    ? `I just beat Axiom-7 AI ${humanScore}-${agentScore} in a ${DIFFICULTY_CONFIG[difficulty].label} challenge on @KlyroHQ! Badge: ${matchBadge.icon} ${matchBadge.label}. Can you out-trade the machine? #Klyro #Mantle #HumanVsAI`
+    ? `I just beat Axiom-7 AI ${humanScore}-${agentScore} in ${DIFFICULTY_CONFIG[difficulty].label} (${roundDuration}s rounds) on @KlyroHQ! Earned ${totalPts} pts · Badge: ${matchBadge.icon} ${matchBadge.label}. #Klyro #Mantle #HumanVsAI`
     : tied
-    ? `Tied ${humanScore}-${agentScore} with Axiom-7 AI on @KlyroHQ — a perfect dead heat in ${DIFFICULTY_CONFIG[difficulty].label}! Rematch incoming. #Klyro #Mantle #HumanVsAI`
-    : `Axiom-7 AI beat me ${agentScore}-${humanScore} in ${DIFFICULTY_CONFIG[difficulty].label} on @KlyroHQ. Rematch time — can you do better? #Klyro #Mantle #HumanVsAI`
+    ? `Tied ${humanScore}-${agentScore} with Axiom-7 AI on @KlyroHQ — dead heat in ${DIFFICULTY_CONFIG[difficulty].label} (${roundDuration}s). Rematch incoming. #Klyro #Mantle #HumanVsAI`
+    : `Axiom-7 AI beat me ${agentScore}-${humanScore} in ${DIFFICULTY_CONFIG[difficulty].label} (${roundDuration}s) on @KlyroHQ. Rematch time. #Klyro #Mantle #HumanVsAI`
   const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText + '\n' + BASE_URL + '/challenge')}`
 
   return (
@@ -344,6 +346,13 @@ function FinalReport({
               <div className="font-display font-black text-[56px] leading-none text-[#f43f5e]">{agentScore}</div>
               <div className="font-mono text-[11px] text-white/30 mt-1 uppercase tracking-[.1em]">Axiom-7</div>
             </div>
+          </div>
+
+          {/* Total pts */}
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <div className="font-mono text-[11px] text-white/25">Total earned:</div>
+            <div className="font-mono font-bold text-[16px]" style={{ color: '#9A6BFF' }}>{totalPts} pts</div>
+            <div className="font-mono text-[10px] text-white/20">({roundDuration}s rounds)</div>
           </div>
 
           {/* Match badge */}
@@ -422,13 +431,14 @@ function FinalReport({
 // ── Main ChallengeView ───────────────────────────────────────────────────────
 
 export function ChallengeView() {
-  const [difficulty, setDifficulty] = useState<Difficulty>('best-of-3')
-  const [challengePhase, setChallengePhase] = useState<ChallengePhase>('pick')
-  const [records, setRecords] = useState<RoundRecord[]>([])
-  const [humanScore, setHumanScore] = useState(0)
-  const [agentScore, setAgentScore] = useState(0)
-  const [currentRound, setCurrentRound] = useState(1)
-  const [lastRecord, setLastRecord] = useState<RoundRecord | null>(null)
+  const [difficulty,      setDifficulty]      = useState<Difficulty>('best-of-3')
+  const [roundDuration,   setRoundDuration]   = useState(30)   // seconds per round
+  const [challengePhase,  setChallengePhase]  = useState<ChallengePhase>('pick')
+  const [records,         setRecords]         = useState<RoundRecord[]>([])
+  const [humanScore,      setHumanScore]      = useState(0)
+  const [agentScore,      setAgentScore]      = useState(0)
+  const [currentRound,    setCurrentRound]    = useState(1)
+  const [lastRecord,      setLastRecord]      = useState<RoundRecord | null>(null)
 
   // Mock store for the actual in-round game
   useIdlePriceTick()
@@ -454,7 +464,7 @@ export function ChallengeView() {
   useEffect(() => {
     if (challengePhase === 'playing' && mockPhase === 'idle' && !roundStarted.current) {
       roundStarted.current = true
-      startMockRound('ETH/USD', 60)
+      startMockRound('ETH/USD', roundDuration)
     }
   }, [challengePhase, mockPhase, startMockRound])
 
@@ -588,11 +598,42 @@ export function ChallengeView() {
             ))}
           </div>
 
+          {/* Duration picker */}
+          <div className="mb-5">
+            <div className="font-mono text-[9px] tracking-[.16em] uppercase text-white/25 mb-2 text-center">Round duration</div>
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { s: 15, label: '15s', bonus: '4×' },
+                { s: 30, label: '30s', bonus: '2×' },
+                { s: 45, label: '45s', bonus: '1.5×' },
+                { s: 60, label: '60s', bonus: '1×' },
+              ].map(({ s, label, bonus }) => {
+                const active = roundDuration === s
+                return (
+                  <button key={s} onClick={() => setRoundDuration(s)}
+                    className="flex flex-col items-center py-2.5 rounded-xl transition-all"
+                    style={{
+                      background: active ? 'rgba(108,43,242,0.22)' : 'rgba(255,255,255,0.04)',
+                      border: `1px solid ${active ? 'rgba(108,43,242,0.5)' : 'rgba(255,255,255,0.08)'}`,
+                    }}>
+                    <span className="font-mono font-bold text-[13px]"
+                      style={{ color: active ? '#9A6BFF' : 'rgba(255,255,255,0.45)' }}>{label}</span>
+                    <span className="font-mono text-[9px] mt-0.5"
+                      style={{ color: active ? '#6C2BF2' : 'rgba(255,255,255,0.2)' }}>{bonus} pts</span>
+                  </button>
+                )
+              })}
+            </div>
+            <div className="font-mono text-[9px] text-white/20 mt-1.5 text-center">
+              faster = more pts per win · {roundDuration}s × {getDurationMultiplier(roundDuration)} = {calcPoints('win', roundDuration)} pts/win
+            </div>
+          </div>
+
           <button onClick={handleStart}
             className="w-full py-4 rounded-xl font-mono font-bold text-[14px] uppercase tracking-[.08em] text-white transition-all active:scale-[.97]"
             style={{ background: 'linear-gradient(135deg, #6C2BF2, #7c3af5)',
               boxShadow: '0 0 32px rgba(108,43,242,0.55)' }}>
-            {DIFFICULTY_CONFIG[difficulty].icon} Start {DIFFICULTY_CONFIG[difficulty].label} →
+            {DIFFICULTY_CONFIG[difficulty].icon} Start {DIFFICULTY_CONFIG[difficulty].label} ({roundDuration}s) →
           </button>
 
           <div className="text-center mt-4">
@@ -660,6 +701,7 @@ export function ChallengeView() {
           agentScore={agentScore}
           totalRounds={totalRounds}
           difficulty={difficulty}
+          roundDuration={roundDuration}
           onRematch={handleRematch}
           onHome={() => { resetMock(); window.location.href = '/arena' }}
         />
