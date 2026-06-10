@@ -30,6 +30,11 @@ export default function LandingPage() {
                 className="font-mono font-semibold text-[13px] tracking-[.04em] uppercase bg-sig text-white px-5 py-3.5 rounded-full shadow-sig transition-transform active:translate-y-px">
                 Enter the arena →
               </Link>
+              <Link href="/challenge"
+                className="font-mono font-semibold text-[13px] tracking-[.04em] uppercase px-5 py-3.5 rounded-full border transition-transform active:translate-y-px"
+                style={{ background: 'rgba(108,43,242,0.12)', borderColor: 'rgba(108,43,242,0.35)', color: '#9A6BFF' }}>
+                ⚔️ Gauntlet Mode
+              </Link>
               <Link href="/leaderboard"
                 className="font-mono font-semibold text-[13px] tracking-[.04em] uppercase bg-surface text-ink border border-line-2 px-5 py-3.5 rounded-full transition-transform active:translate-y-px">
                 View leaderboard
