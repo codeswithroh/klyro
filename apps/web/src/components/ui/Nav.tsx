@@ -16,6 +16,7 @@ export function Nav() {
         <div className="hidden md:flex gap-1">
           {[
             { href: '/arena', label: 'Arena' },
+            { href: '/agents', label: 'Agents' },
             { href: '/leaderboard', label: 'Board' },
           ].map((l) => (
             <Link key={l.href} href={l.href}

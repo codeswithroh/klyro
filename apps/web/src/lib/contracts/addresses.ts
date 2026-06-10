@@ -10,6 +10,7 @@ export const CONTRACTS = {
   PredictionRegistry:  process.env.NEXT_PUBLIC_PREDICTION_REGISTRY_ADDRESS  ?? ZERO,
   Leaderboard:         process.env.NEXT_PUBLIC_LEADERBOARD_ADDRESS          ?? ZERO,
   AgentRegistry:       process.env.NEXT_PUBLIC_AGENT_REGISTRY_ADDRESS       ?? ZERO,
+  AgentNFT:            process.env.NEXT_PUBLIC_AGENT_NFT_ADDRESS            ?? '0xC2C31D896407fEEb852ABE420282c06cbd22e8a6',
 } as const
 
 // Axiom-7 bot wallet — used to read its actual on-chain prediction
