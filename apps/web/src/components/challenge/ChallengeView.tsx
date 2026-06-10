@@ -486,8 +486,8 @@ export function ChallengeView() {
   if (challengePhase === 'playing') {
     return (
       <div className="relative">
-        {/* Full Arena interface — identical to Arena mode */}
-        <ArenaView />
+        {/* Full Arena interface — identical to Arena mode, forced into mock mode */}
+        <ArenaView gauntletMode={true} />
 
         {/* Challenge progress HUD — fixed pill just below the arena top strip */}
         <div

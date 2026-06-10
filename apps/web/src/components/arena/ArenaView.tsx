@@ -10,7 +10,7 @@
  *   - Floating betting panel (absolute bottom-left, 300px): ALL game interaction
  *   - Settlement toast (fixed bottom-right): auto-dismisses after result
  *
- * State machine (CONTRACTS_LIVE path):
+ * State machine (isLive path):
  *   idle        — no open round, user can start one
  *   waitingOpen — tx sent, waiting for chain to confirm new round
  *   open        — round live, no prediction yet → HIGHER / LOWER buttons
@@ -34,6 +34,7 @@ import { useOpenRound }               from '@/lib/hooks/useOpenRound'
 import { useResolveRound }            from '@/lib/hooks/useResolveRound'
 import { useRoundStore, type Call, type PricePoint } from '@/lib/store/roundStore'
 import { useIdlePriceTick }           from '@/lib/hooks/useIdlePriceTick'
+import { useRoundTimer }              from '@/lib/hooks/useRoundTimer'
 import { ArenaChart }                 from './ArenaChart'
 import { ResultModal }               from './ResultModal'
 import { formatPrice, type AssetPair } from '@/lib/mock/priceSimulator'
@@ -215,7 +216,11 @@ function SettlementToast({ humanWon, humanCall, agentCall, outcome, deltaText, t
 interface FrozenResult { roundId: bigint; outcome: boolean; startPriceHuman: number; closePriceHuman: number }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-export function ArenaView() {
+export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } = {}) {
+  // gauntletMode=true forces mock path regardless of CONTRACTS_LIVE
+  // (Gauntlet always uses the local price simulator — no wallet / tx needed)
+  const isLive = CONTRACTS_LIVE && !gauntletMode
+
   const account      = useActiveAccount()
   const isConnected  = !!account
   const queryClient  = useQueryClient()
@@ -232,7 +237,7 @@ export function ArenaView() {
   const prevPriceRound                 = useRef<bigint | null>(null)
 
   useEffect(() => {
-    if (!CONTRACTS_LIVE || livePrice === null) return
+    if (!isLive || livePrice === null) return
     if (chainRound?.roundId && chainRound.roundId !== prevPriceRound.current) {
       liveRef.current = []
       prevPriceRound.current = chainRound.roundId
@@ -258,8 +263,9 @@ export function ArenaView() {
   const prevRoundId                             = useRef<bigint | null>(null)
   const autoSettledRoundId                      = useRef<bigint | null>(null)
 
-  // Mock store
+  // Mock store — timer drives the 1-second countdown when a mock round is open
   useIdlePriceTick()
+  useRoundTimer()
   const mockPhase          = useRoundStore(s => s.phase)
   const mockAsset          = useRoundStore(s => s.asset)
   const mockFormattedPrice = useRoundStore(s => s.formattedPrice)
@@ -325,7 +331,7 @@ export function ArenaView() {
 
   async function handleCall(call: Call) {
     if (humanCall !== null) return
-    if (CONTRACTS_LIVE) {
+    if (isLive) {
       if (!isConnected || !chainRound?.isOpen) return
       setHumanCall(call)
 
@@ -395,35 +401,35 @@ export function ArenaView() {
   }
 
   // ── Derived display values ────────────────────────────────────────────────
-  const displayAsset       = CONTRACTS_LIVE ? asset : mockAsset
-  const displayPrice       = CONTRACTS_LIVE && livePrice !== null ? formatPrice(asset, livePrice) : mockFormattedPrice
-  const displaySecondsLeft = CONTRACTS_LIVE ? (chainRound?.secondsLeft ?? 0) : mockSecondsLeft
-  const displayTotal       = CONTRACTS_LIVE ? (chainRound?.totalDuration ?? selectedDuration) : mockTotalSeconds
-  const displayRoundId     = CONTRACTS_LIVE ? Number(chainRound?.roundId ?? 0) : mockRoundId
-  const displayHumanCall   = CONTRACTS_LIVE ? humanCall : mockHumanCall
-  const displayAgentCall   = CONTRACTS_LIVE ? agentCall : mockAgentCall
-  const displayIsOpen      = CONTRACTS_LIVE ? (chainRound?.isOpen ?? false) : (mockPhase === 'open')
-  const displayIsResolved  = CONTRACTS_LIVE ? (chainRound?.resolved ?? false) : (mockPhase === 'resolved')
+  const displayAsset       = isLive ? asset : mockAsset
+  const displayPrice       = isLive && livePrice !== null ? formatPrice(asset, livePrice) : mockFormattedPrice
+  const displaySecondsLeft = isLive ? (chainRound?.secondsLeft ?? 0) : mockSecondsLeft
+  const displayTotal       = isLive ? (chainRound?.totalDuration ?? selectedDuration) : mockTotalSeconds
+  const displayRoundId     = isLive ? Number(chainRound?.roundId ?? 0) : mockRoundId
+  const displayHumanCall   = isLive ? humanCall : mockHumanCall
+  const displayAgentCall   = isLive ? agentCall : mockAgentCall
+  const displayIsOpen      = isLive ? (chainRound?.isOpen ?? false) : (mockPhase === 'open')
+  const displayIsResolved  = isLive ? (chainRound?.resolved ?? false) : (mockPhase === 'resolved')
 
-  const chartHistory: PricePoint[] = CONTRACTS_LIVE && liveHistory.length > 1
+  const chartHistory: PricePoint[] = isLive && liveHistory.length > 1
     ? liveHistory : mockPriceHistory
-  const chartStartPrice = CONTRACTS_LIVE
+  const chartStartPrice = isLive
     ? chainRound?.startPriceHuman
     : (mockPhase === 'open' ? mockStartPrice : undefined)
 
   let deltaFromStart = ''; let deltaPos = true
-  if (CONTRACTS_LIVE && chainRound && livePrice !== null) {
+  if (isLive && chainRound && livePrice !== null) {
     const pct = ((livePrice - chainRound.startPriceHuman) / chainRound.startPriceHuman) * 100
     deltaPos = pct >= 0
     deltaFromStart = `${pct >= 0 ? '+' : ''}${pct.toFixed(3)}%`
-  } else if (!CONTRACTS_LIVE && mockPhase === 'open') {
+  } else if (!isLive && mockPhase === 'open') {
     deltaFromStart = mockDeltaText; deltaPos = mockDeltaIsUp
   }
 
   // ── CRITICAL: needsSettle only when user participated ────────────────────
   // Without this gate, every closed-but-unresolved round blocks the user
   // even if they just arrived at the page.
-  const needsSettle = CONTRACTS_LIVE
+  const needsSettle = isLive
     && humanCall !== null        // user made a prediction this session
     && displaySecondsLeft <= 0   // round window has closed
     && !displayIsResolved        // not yet resolved
@@ -434,7 +440,7 @@ export function ArenaView() {
   // close as possible to the actual close price.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (!CONTRACTS_LIVE || !needsSettle || isResolving || !chainRound) return
+    if (!isLive || !needsSettle || isResolving || !chainRound) return
     if (autoSettledRoundId.current === chainRound.roundId) return
     autoSettledRoundId.current = chainRound.roundId
     handleSettle()
@@ -442,7 +448,7 @@ export function ArenaView() {
 
   // ── Panel state machine ──────────────────────────────────────────────────
   type PS = 'idle'|'waitingOpen'|'open'|'locked'|'needsSettle'|'result'|'mIdle'|'mOpen'|'mResult'
-  const ps: PS = !CONTRACTS_LIVE
+  const ps: PS = !isLive
     ? (mockPhase === 'idle' ? 'mIdle' : mockPhase === 'open' ? 'mOpen' : 'mResult')
     : resultShown        ? 'result'
     : needsSettle        ? 'needsSettle'
@@ -453,7 +459,7 @@ export function ArenaView() {
 
   // Result data
   const resOutcome: Call | null = resultShown
-    ? (CONTRACTS_LIVE ? (frozenResult?.outcome ? 'up' : 'down') : mockLastResult?.outcome ?? null)
+    ? (isLive ? (frozenResult?.outcome ? 'up' : 'down') : mockLastResult?.outcome ?? null)
     : null
 
   // 3-state result: the game is head-to-head "beat the AI".
@@ -463,7 +469,7 @@ export function ArenaView() {
   //          This covers: both right, both wrong, or bot didn't predict
   const resVerdict: 'win' | 'lose' | 'draw' = (() => {
     if (!resultShown || resOutcome === null) return 'draw'
-    if (CONTRACTS_LIVE) {
+    if (isLive) {
       const humanRight = humanCall === resOutcome
       const agentRight = agentCall === resOutcome
       if (humanCall === agentCall) return 'draw'    // same call → draw
@@ -477,7 +483,7 @@ export function ArenaView() {
   const resHumanWon = resVerdict === 'win'
 
   const resDelta = resultShown
-    ? (CONTRACTS_LIVE ? (() => {
+    ? (isLive ? (() => {
         const pct = ((frozenResult!.closePriceHuman - frozenResult!.startPriceHuman) / frozenResult!.startPriceHuman) * 100
         return `${pct >= 0 ? '+' : ''}${pct.toFixed(3)}%`
       })() : mockLastResult?.deltaText ?? '')
@@ -494,7 +500,7 @@ export function ArenaView() {
       <ArenaChart
         history={chartHistory}
         startPrice={displayIsOpen ? chartStartPrice : undefined}
-        liveMode={displayIsOpen || (CONTRACTS_LIVE && livePrice !== null)}
+        liveMode={displayIsOpen || (isLive && livePrice !== null)}
         roundActive={displayIsOpen}
         humanCall={displayHumanCall}
         secondsLeft={displaySecondsLeft}
@@ -514,7 +520,7 @@ export function ArenaView() {
           </div>
           <span className="font-display font-bold text-[13px] text-white">{displayAsset}</span>
           <span className="font-mono text-[9px] text-white/25 uppercase tracking-[.1em] hidden sm:block">
-            {CONTRACTS_LIVE ? 'PYTH · LIVE' : 'PYTH · MOCK'}
+            {isLive ? 'PYTH · LIVE' : 'PYTH · MOCK'}
           </span>
         </div>
 
@@ -546,7 +552,7 @@ export function ArenaView() {
         <div className="flex-1" />
 
         {/* Mock asset switcher */}
-        {!CONTRACTS_LIVE && mockPhase === 'idle' && (
+        {!isLive && mockPhase === 'idle' && (
           <div className="flex gap-1.5">
             {(['ETH/USD', 'BTC/USD', 'MNT/USD'] as AssetPair[]).map(a => (
               <button key={a} onClick={() => useRoundStore.getState().setAsset(a)}
@@ -582,14 +588,14 @@ export function ArenaView() {
         {(ps === 'idle' || ps === 'mIdle') && (
           <div className="p-5">
             <div className="font-mono text-[10px] text-white/25 uppercase tracking-[.14em] mb-1">
-              KLYRO ARENA {CONTRACTS_LIVE ? '' : '· MOCK'}
+              KLYRO ARENA {isLive ? '' : '· MOCK'}
             </div>
             <div className="font-display font-black text-[18px] text-white mb-1">
               Beat the AI
             </div>
             <div className="font-mono text-[11px] text-white/40 leading-relaxed mb-4">
               Predict if {displayAsset.split('/')[0]} will rise or fall in your chosen window.
-              {CONTRACTS_LIVE && !isConnected && (
+              {isLive && !isConnected && (
                 <span className="block mt-2 text-[#9A6BFF]">
                   Connect wallet via the button in the top bar to play.
                 </span>
@@ -633,18 +639,18 @@ export function ArenaView() {
               </div>
             )}
 
-            {(CONTRACTS_LIVE && !isConnected) ? (
+            {(isLive && !isConnected) ? (
               <div className="w-full py-3 rounded-xl font-mono text-[12px] text-white/30 text-center border border-white/[0.08]">
                 Wallet not connected
               </div>
             ) : (
               <button
-                onClick={CONTRACTS_LIVE ? handleStartRound : () => startMockRound(displayAsset, selectedDuration)}
-                disabled={CONTRACTS_LIVE && isOpening}
+                onClick={isLive ? handleStartRound : () => startMockRound(displayAsset, selectedDuration)}
+                disabled={isLive && isOpening}
                 className="w-full py-3.5 rounded-xl font-mono font-bold text-[13px] uppercase tracking-[.08em] text-white disabled:opacity-60 disabled:cursor-not-allowed transition-all active:scale-[.97]"
                 style={{ background: 'linear-gradient(135deg, #6C2BF2, #7c3af5)',
                   boxShadow: '0 0 28px rgba(108,43,242,0.50)' }}>
-                {CONTRACTS_LIVE && isOpening
+                {isLive && isOpening
                   ? (openStatus ?? 'Opening round…')
                   : `◼  Start ${selectedDuration}s Round  →`}
               </button>
@@ -683,7 +689,7 @@ export function ArenaView() {
               Will ETH go <span className="text-[#10b981] font-semibold">higher</span> or{' '}
               <span className="text-[#f43f5e] font-semibold">lower</span> in{' '}
               {displayTotal}s?
-              {CONTRACTS_LIVE && !isConnected && (
+              {isLive && !isConnected && (
                 <span className="block mt-1.5 text-[#9A6BFF]">Connect wallet to play.</span>
               )}
             </div>
@@ -692,7 +698,7 @@ export function ArenaView() {
             <div className="grid grid-cols-2 gap-2.5">
               <button
                 onClick={() => handleCall('up')}
-                disabled={CONTRACTS_LIVE && !isConnected}
+                disabled={isLive && !isConnected}
                 className="flex flex-col items-center py-5 rounded-xl transition-all active:scale-[.95] disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ background: 'rgba(16,185,129,0.10)',
                   border: '1px solid rgba(16,185,129,0.30)',
@@ -704,7 +710,7 @@ export function ArenaView() {
               </button>
               <button
                 onClick={() => handleCall('down')}
-                disabled={CONTRACTS_LIVE && !isConnected}
+                disabled={isLive && !isConnected}
                 className="flex flex-col items-center py-5 rounded-xl transition-all active:scale-[.95] disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ background: 'rgba(244,63,94,0.10)',
                   border: '1px solid rgba(244,63,94,0.30)',
@@ -811,7 +817,7 @@ export function ArenaView() {
               AX-7: {displayAgentCall === 'up' ? '▲ Higher' : '▼ Lower'}
             </div>
 
-            {CONTRACTS_LIVE && txHash && (
+            {isLive && txHash && (
               <a href={`https://sepolia.mantlescan.xyz/tx/${txHash}`}
                 target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-1.5 font-mono text-[10px] text-white/25 hover:text-white/50 uppercase tracking-[.08em] mb-4 transition-colors">
@@ -820,7 +826,7 @@ export function ArenaView() {
             )}
 
             <button
-              onClick={CONTRACTS_LIVE ? handlePlayAgain : resetMock}
+              onClick={isLive ? handlePlayAgain : resetMock}
               className="w-full py-3.5 rounded-xl font-mono font-bold text-[13px] uppercase tracking-[.08em] text-white transition-all active:scale-[.97]"
               style={{ background: 'linear-gradient(135deg, #6C2BF2, #7c3af5)',
                 boxShadow: '0 0 28px rgba(108,43,242,0.50)' }}>
@@ -838,9 +844,9 @@ export function ArenaView() {
           agentCall={displayAgentCall ?? (resOutcome === 'up' ? 'down' : 'up')}
           outcome={resOutcome}
           deltaText={resDelta}
-          txHash={CONTRACTS_LIVE ? txHash : undefined}
+          txHash={isLive ? txHash : undefined}
           onDismiss={() => setShowToast(false)}
-          onPlayAgain={CONTRACTS_LIVE ? handlePlayAgain : resetMock}
+          onPlayAgain={isLive ? handlePlayAgain : resetMock}
         />
       )}
 
@@ -854,9 +860,9 @@ export function ArenaView() {
           startPrice={frozenResult.startPriceHuman}
           closePrice={frozenResult.closePriceHuman}
           roundId={frozenResult.roundId}
-          txHash={CONTRACTS_LIVE ? txHash : undefined}
+          txHash={isLive ? txHash : undefined}
           duration={displayTotal}
-          onPlayAgain={CONTRACTS_LIVE ? handlePlayAgain : resetMock}
+          onPlayAgain={isLive ? handlePlayAgain : resetMock}
         />
       )}
     </div>
