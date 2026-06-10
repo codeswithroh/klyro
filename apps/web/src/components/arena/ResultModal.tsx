@@ -1,33 +1,68 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { useActiveAccount, useSendTransaction } from 'thirdweb/react'
+import { prepareContractCall, getContract, defineChain } from 'thirdweb'
+import { thirdwebClient } from '@/lib/contracts/thirdweb-client'
+import { mantleSepolia } from '@/lib/contracts/chain'
+import { CONTRACTS } from '@/lib/contracts/addresses'
+import { BATTLE_RESULT_NFT_ABI } from '@/lib/contracts/abis'
+import { createPublicClient, http } from 'viem'
 import type { Call } from '@/lib/store/roundStore'
 
-// ── Messages ──────────────────────────────────────────────────────────────────
+const twChain = defineChain({
+  id: mantleSepolia.id,
+  rpc: mantleSepolia.rpcUrls.default.http[0],
+  nativeCurrency: mantleSepolia.nativeCurrency,
+})
 
-const WIN_MSGS = [
-  'The AI is writing its resignation letter 🤖',
-  'Axiom-7 is in shambles. You destroyed it.',
-  'Peak performance. The algorithm weeps.',
-  'Skill issue for the bot. You cooked.',
-  'Touch grass? Never. Win again? Always.',
-]
+// ── Strategy type + badge classifier ────────────────────────────────────────
+// Based on whether you agreed/disagreed with the AI and whether you were right.
 
-const LOSE_MSGS = [
-  'The AI is doing a victory lap. Embarrassing.',
-  'Axiom-7 predicted your failure. It was right.',
-  'L + ratio + you got rekt by a bot 💀',
-  'The algorithm sends its regards. (It\'s laughing.)',
-  'Even the RNG felt bad for you.',
-]
+export interface BattleAnalysis {
+  strategyType: string
+  strategyDesc: string
+  badge: string
+  badgeIcon: string
+}
 
-const DRAW_MSGS = [
-  'You two have the same brain cell, apparently.',
-  'Great minds think alike. Or great idiots.',
-  'The AI copied your homework. Classic.',
-  'Synchronized stupidity / genius. Unclear which.',
-  'Call it a truce. For now.',
-]
+export function classifyBattle(
+  humanCall: Call,
+  agentCall: Call | null,
+  outcome: Call,
+  verdict: 'win' | 'lose' | 'draw'
+): BattleAnalysis {
+  const humanRight = humanCall === outcome
+  const agentRight = agentCall !== null && agentCall === outcome
+  const agreedWithBot = agentCall !== null && humanCall === agentCall
+
+  if (verdict === 'win') {
+    // Won while disagreeing with the AI
+    if (!agreedWithBot) {
+      return humanCall === 'up'
+        ? { strategyType: 'Momentum Alpha',   strategyDesc: 'Rode the bull — and left the AI behind',   badge: 'AI Slayer',     badgeIcon: '🗡️' }
+        : { strategyType: 'Contrarian Alpha',  strategyDesc: 'Bet against the trend — and nailed it',     badge: 'AI Slayer',     badgeIcon: '🗡️' }
+    }
+    // Won and agreed with the AI (both right — draw should've fired but edge case)
+    return { strategyType: 'Sharp Consensus', strategyDesc: 'Synced with the machine and both won',       badge: 'Market Oracle', badgeIcon: '🔮' }
+  }
+
+  if (verdict === 'lose') {
+    if (humanCall === 'up') {
+      return { strategyType: 'Bull Conviction', strategyDesc: 'Held the bull thesis — the market disagreed', badge: 'Level Up',    badgeIcon: '⬆️' }
+    }
+    return { strategyType: 'Bear Conviction',   strategyDesc: 'Took the short side — timing was off',        badge: 'Level Up',    badgeIcon: '⬆️' }
+  }
+
+  // Draw
+  if (humanRight && agentRight) {
+    return { strategyType: 'Parallel Intelligence', strategyDesc: 'Both read the market perfectly — no edge separated you', badge: 'Mind Sync',   badgeIcon: '🧠' }
+  }
+  if (!humanRight && !agentRight) {
+    return { strategyType: 'Volatile Market',  strategyDesc: 'Market surprised both of you — chaos round',  badge: 'Chaos Pair',  badgeIcon: '⚡' }
+  }
+  return { strategyType: 'Neutral Ground',     strategyDesc: 'No edge either way',                           badge: 'Balanced',    badgeIcon: '⚖️' }
+}
 
 // ── Canvas confetti (win) ─────────────────────────────────────────────────────
 
@@ -169,15 +204,15 @@ function AnimatedHero({ verdict }: { verdict: 'win' | 'lose' | 'draw' }) {
       <style>{`
         @keyframes heroOrbitWin {
           0%,100% { opacity:.8; }
-          50%      { transform: rotate(calc(var(--ang,0deg) + 25deg)) translateX(calc(var(--dist,60px) + 14px)) rotate(calc(-1*(var(--ang,0deg)+25deg))) scale(1.2); opacity:1; }
+          50%      { opacity:1; }
         }
         @keyframes heroOrbitLose {
           0%,100% { opacity:.75; }
-          50%      { transform: rotate(var(--ang,0deg)) translateX(var(--dist,60px)) rotate(calc(-1*var(--ang,0deg))) scale(0.85) translateY(6px); opacity:.5; }
+          50%      { opacity:.5; }
         }
         @keyframes heroOrbitDraw {
           0%,100% { opacity:.7; }
-          50%      { transform: rotate(var(--ang,0deg)) translateX(calc(var(--dist,60px) + 8px)) rotate(calc(-1*var(--ang,0deg))) scale(1.05); opacity:.9; }
+          50%      { opacity:.9; }
         }
         @keyframes heroCenterPop {
           0%   { transform:scale(0) rotate(-15deg); opacity:0; }
@@ -188,6 +223,119 @@ function AnimatedHero({ verdict }: { verdict: 'win' | 'lose' | 'draw' }) {
     </div>
   )
 }
+
+// ── Mint Battle NFT hook ──────────────────────────────────────────────────────
+
+type MintState = 'idle' | 'checking' | 'minting' | 'done' | 'error'
+
+function useMintBattle(
+  playerAddress: string | undefined,
+  roundId: bigint | number,
+  humanCall: Call,
+  outcome: Call,
+  verdict: 'win' | 'lose' | 'draw'
+) {
+  const [mintState, setMintState] = useState<MintState>('idle')
+  const [alreadyMinted, setAlreadyMinted] = useState(false)
+  const [mintedTokenId, setMintedTokenId] = useState<number | null>(null)
+  const [mintError, setMintError] = useState<string | null>(null)
+  const { mutateAsync: sendTx } = useSendTransaction()
+
+  // Check if already minted on load
+  useEffect(() => {
+    if (!playerAddress) return
+    const viemClient = createPublicClient({
+      chain: { id: mantleSepolia.id, name: mantleSepolia.name, nativeCurrency: mantleSepolia.nativeCurrency,
+        rpcUrls: { default: { http: [mantleSepolia.rpcUrls.default.http[0]] } } } as any,
+      transport: http(),
+    })
+    setMintState('checking')
+    viemClient.readContract({
+      address: CONTRACTS.BattleResultNFT as `0x${string}`,
+      abi: BATTLE_RESULT_NFT_ABI,
+      functionName: 'hasMinted',
+      args: [playerAddress as `0x${string}`, BigInt(roundId)],
+    }).then(has => {
+      setAlreadyMinted(!!has)
+      setMintState('idle')
+    }).catch(() => setMintState('idle'))
+  }, [playerAddress, roundId])
+
+  const mint = useCallback(async () => {
+    if (!playerAddress) return
+    setMintState('minting')
+    setMintError(null)
+    try {
+      const verdictNum = verdict === 'win' ? 0 : verdict === 'lose' ? 1 : 2
+      const contract = getContract({
+        client: thirdwebClient,
+        chain: twChain,
+        address: CONTRACTS.BattleResultNFT as `0x${string}`,
+        abi: BATTLE_RESULT_NFT_ABI as any,
+      })
+      const tx = prepareContractCall({
+        contract,
+        method: 'function mintBattle(address player, uint256 roundId, bool humanCall, bool outcome, uint8 verdict) returns (uint256 tokenId)',
+        params: [
+          playerAddress as `0x${string}`,
+          BigInt(roundId),
+          humanCall === 'up',
+          outcome === 'up',
+          verdictNum,
+        ],
+      })
+      const receipt = await sendTx(tx as any)
+      // Try to extract tokenId from logs (Transfer event topic[3])
+      try {
+        const transferLog = (receipt as any).logs?.find(
+          (l: any) => l.topics?.[0] === '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
+        )
+        if (transferLog?.topics?.[3]) {
+          setMintedTokenId(parseInt(transferLog.topics[3], 16))
+        }
+      } catch { /* token ID is optional */ }
+      setAlreadyMinted(true)
+      setMintState('done')
+    } catch (e: unknown) {
+      const msg = (e as Error).message ?? 'Mint failed'
+      if (msg.includes('AlreadyMinted')) {
+        setAlreadyMinted(true)
+        setMintState('done')
+      } else {
+        setMintError(msg.slice(0, 80))
+        setMintState('error')
+      }
+    }
+  }, [playerAddress, roundId, humanCall, outcome, verdict, sendTx])
+
+  return { mintState, alreadyMinted, mintedTokenId, mintError, mint }
+}
+
+// ── Messages ──────────────────────────────────────────────────────────────────
+
+const WIN_MSGS = [
+  'The AI is writing its resignation letter 🤖',
+  'Axiom-7 is in shambles. You destroyed it.',
+  'Peak performance. The algorithm weeps.',
+  'Skill issue for the bot. You cooked.',
+  'Touch grass? Never. Win again? Always.',
+]
+
+const LOSE_MSGS = [
+  'The AI is doing a victory lap. Embarrassing.',
+  'Axiom-7 predicted your failure. It was right.',
+  'L + ratio + you got rekt by a bot 💀',
+  'The algorithm sends its regards. (It\'s laughing.)',
+  'Even the RNG felt bad for you.',
+]
+
+const DRAW_MSGS = [
+  'You two have the same brain cell, apparently.',
+  'Great minds think alike. Or great idiots.',
+  'The AI copied your homework. Classic.',
+  'Synchronized stupidity / genius. Unclear which.',
+  'Call it a truce. For now.',
+]
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -216,9 +364,16 @@ export function ResultModal({
 }: ResultModalProps) {
   const [mounted, setMounted] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const account = useActiveAccount()
 
   const msgPool = verdict === 'win' ? WIN_MSGS : verdict === 'lose' ? LOSE_MSGS : DRAW_MSGS
   const msgRef  = useRef(msgPool[Math.floor(Math.random() * msgPool.length)])
+
+  const analysis = classifyBattle(humanCall, agentCall, outcome, verdict)
+
+  const { mintState, alreadyMinted, mintedTokenId, mintError, mint } = useMintBattle(
+    account?.address, roundId, humanCall, outcome, verdict
+  )
 
   useEffect(() => { const t = setTimeout(() => setMounted(true), 40); return () => clearTimeout(t) }, [])
 
@@ -269,12 +424,31 @@ export function ResultModal({
     ? '0 0 28px rgba(108,43,242,0.50)'
     : '0 0 28px rgba(217,119,6,0.45)'
 
-  // For draw: show WHY it's a draw
+  // Draw reason
   const drawReason = agentCall === null
     ? 'Bot didn\'t predict this round'
     : humanCall === agentCall
     ? `Both called ${humanCall === 'up' ? '▲ Higher' : '▼ Lower'} — no one out-predicted the other`
     : ''
+
+  // Share to X
+  const BASE_URL = typeof window !== 'undefined' ? window.location.origin : 'https://klyro.xyz'
+  const roundUrl = `${BASE_URL}/round/${roundId}`
+  const shareText = verdict === 'win'
+    ? `I just out-predicted Axiom-7 AI on @KlyroHQ! Called ${humanCall === 'up' ? '▲ HIGHER' : '▼ LOWER'} — ETH moved ${deltaText}. Strategy: ${analysis.strategyType}. Badge: ${analysis.badgeIcon} ${analysis.badge}. Can you beat the machine? #Klyro #Mantle #HumanVsAI`
+    : verdict === 'lose'
+    ? `Axiom-7 AI got me on @KlyroHQ — I called ${humanCall === 'up' ? '▲ HIGHER' : '▼ LOWER'} but ETH went ${outcome === 'up' ? '▲' : '▼'} ${deltaText}. Rematch time. #Klyro #Mantle #HumanVsAI`
+    : `Drew with Axiom-7 AI on @KlyroHQ — ${analysis.strategyType}! ETH moved ${deltaText}. #Klyro #Mantle #HumanVsAI`
+  const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText + '\n' + roundUrl)}`
+
+  // Mint button label
+  const mintLabel = mintState === 'checking' ? 'Checking…'
+    : mintState === 'minting' ? 'Minting…'
+    : mintState === 'done' || alreadyMinted ? `✓ Minted${mintedTokenId !== null ? ` #${mintedTokenId}` : ''}`
+    : mintState === 'error' ? 'Retry Mint'
+    : 'Mint Battle NFT'
+
+  const EXPLORER = 'https://explorer.sepolia.mantle.xyz'
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4"
@@ -283,11 +457,12 @@ export function ResultModal({
         backdropFilter: 'blur(10px)',
         opacity: mounted ? 1 : 0,
         transition: 'opacity 0.4s ease',
+        overflowY: 'auto',
       }}>
       <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }} />
 
       {/* ── Card ── */}
-      <div className="relative z-10 w-full max-w-[340px] rounded-2xl overflow-hidden"
+      <div className="relative z-10 w-full max-w-[360px] rounded-2xl overflow-hidden my-4"
         style={{
           background: cardBg,
           border: `1px solid ${borderCol}`,
@@ -313,7 +488,7 @@ export function ResultModal({
         {/* ── Content ── */}
         <div className="px-5 pb-5 pt-3">
           {/* Verdict */}
-          <div className="text-center mb-4">
+          <div className="text-center mb-3">
             <div className="font-display font-black text-[38px] leading-none uppercase tracking-wide"
               style={{ color: accent, textShadow: `0 0 40px ${accent}, 0 0 80px ${glowColor}`, animation: verdictAnimation }}>
               {verdictLabel}
@@ -326,6 +501,26 @@ export function ResultModal({
                 {drawReason}
               </p>
             )}
+          </div>
+
+          {/* ── Strategy + Badge row ── */}
+          <div className="flex items-center gap-2 mb-4 rounded-xl p-3"
+            style={{ background: `${accent}0d`, border: `1px solid ${accent}22` }}>
+            {/* Strategy type */}
+            <div className="flex-1 min-w-0">
+              <div className="font-mono text-[9px] tracking-[.14em] uppercase text-white/30 mb-0.5">Strategy Type</div>
+              <div className="font-mono font-bold text-[13px] truncate" style={{ color: accent }}>
+                {analysis.strategyType}
+              </div>
+              <div className="font-mono text-[10px] text-white/30 leading-tight mt-0.5 truncate">
+                {analysis.strategyDesc}
+              </div>
+            </div>
+            {/* Badge */}
+            <div className="flex flex-col items-center shrink-0 gap-0.5">
+              <div className="text-[28px] leading-none">{analysis.badgeIcon}</div>
+              <div className="font-mono text-[9px] text-white/50 tracking-[.08em] uppercase">{analysis.badge}</div>
+            </div>
           </div>
 
           {/* Score card */}
@@ -395,6 +590,54 @@ export function ResultModal({
               </div>
             </div>
           </div>
+
+          {/* ── Action row: Mint + Share ── */}
+          {account && (
+            <div className="flex gap-2 mb-3">
+              {/* Mint Battle NFT */}
+              <button
+                onClick={mintState === 'idle' || mintState === 'error' ? mint : undefined}
+                disabled={mintState === 'checking' || mintState === 'minting' || mintState === 'done' || alreadyMinted}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-mono text-[11px] font-bold uppercase tracking-[.06em] text-white transition-all disabled:opacity-60"
+                style={{
+                  background: mintState === 'done' || alreadyMinted
+                    ? 'rgba(16,185,129,0.15)'
+                    : 'rgba(108,43,242,0.25)',
+                  border: mintState === 'done' || alreadyMinted
+                    ? '1px solid rgba(16,185,129,0.4)'
+                    : '1px solid rgba(108,43,242,0.4)',
+                  color: mintState === 'done' || alreadyMinted ? '#10b981' : '#9A6BFF',
+                }}>
+                {mintState === 'minting'
+                  ? <><span className="w-3 h-3 rounded-full border border-[#9A6BFF] border-t-transparent animate-spin" /> Minting…</>
+                  : <>{mintState === 'done' || alreadyMinted ? '✓' : '⬡'} {mintLabel}</>
+                }
+              </button>
+
+              {/* Share to X */}
+              <a href={shareUrl} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl font-mono text-[11px] font-bold uppercase tracking-[.06em] transition-opacity hover:opacity-80"
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'white' }}>
+                <svg width="13" height="13" viewBox="0 0 1200 1227" fill="currentColor">
+                  <path d="M714.163 519.284L1160.89 0H1055.03L667.137 450.887L357.328 0H0L468.492 681.821L0 1226.37H105.866L515.491 750.218L842.672 1226.37H1200L714.137 519.284H714.163ZM569.165 687.828L521.697 619.934L144.011 79.6944H306.615L611.412 515.685L658.88 583.579L1055.08 1150.3H892.476L569.165 687.854V687.828Z"/>
+                </svg>
+                Share
+              </a>
+            </div>
+          )}
+
+          {mintError && (
+            <p className="font-mono text-[10px] text-[#f43f5e] mb-2 text-center">{mintError}</p>
+          )}
+
+          {/* Mint success: view on explorer */}
+          {(mintState === 'done' || alreadyMinted) && mintedTokenId !== null && (
+            <a href={`${EXPLORER}/token/${CONTRACTS.BattleResultNFT}?a=${account?.address}`}
+              target="_blank" rel="noopener noreferrer"
+              className="flex items-center justify-center gap-1.5 font-mono text-[10px] text-[#9A6BFF]/60 hover:text-[#9A6BFF] uppercase tracking-[.08em] mb-3 transition-colors">
+              View NFT on Mantle Explorer ↗
+            </a>
+          )}
 
           {/* CTA */}
           <button onClick={onPlayAgain}
