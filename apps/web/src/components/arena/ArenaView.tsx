@@ -301,6 +301,20 @@ export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } =
     if (chainRound?.isOpen && waitingOpen) setWaitingOpen(false)
   }, [chainRound?.isOpen, waitingOpen])
 
+  // Mock round resolved → trigger full ResultModal (same as Gauntlet final report)
+  useEffect(() => {
+    if (mockPhase !== 'resolved' || !mockLastResult) return
+    const fr: FrozenResult = {
+      roundId:         BigInt(mockLastResult.roundId),
+      outcome:         mockLastResult.outcome === 'up',
+      startPriceHuman: mockLastResult.startPrice,
+      closePriceHuman: mockLastResult.closePrice,
+    }
+    setFrozenResult(fr)
+    const t = setTimeout(() => setResultShown(true), 600)
+    return () => clearTimeout(t)
+  }, [mockPhase]) // eslint-disable-line
+
   // Fallback: if chainRound.resolved becomes true via polling (e.g. bot resolved
   // before user clicked Settle), capture result from poll data.
   // handleSettle takes the fast path and sets frozenResult directly, so
@@ -404,6 +418,7 @@ export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } =
     setTxMsg(null); setFrozenResult(null)
     setWaitingOpen(false)
     setForceMock(false)   // return to live mode — bot rounds will show again
+    resetMock()           // also clear mock store so the idle panel shows
   }
 
   // ── Derived display values ────────────────────────────────────────────────
@@ -483,7 +498,13 @@ export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } =
       if (!humanRight && agentRight) return 'lose'
       return 'draw'
     }
-    return (mockLastResult?.humanWon ?? false) ? 'win' : 'lose'
+    // Mock head-to-head: compare calls directly against outcome
+    const mhc = mockLastResult?.humanCall ?? null
+    const mac = mockLastResult?.agentCall ?? null
+    if (mhc === mac) return 'draw'                         // same call → draw
+    if (mhc === resOutcome && mac !== resOutcome) return 'win'
+    if (mhc !== resOutcome && mac === resOutcome) return 'lose'
+    return 'draw'                                          // fallback
   })()
 
   const resHumanWon = resVerdict === 'win'
@@ -818,8 +839,8 @@ export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } =
           </div>
         )}
 
-        {/* ── RESULT ── */}
-        {(ps === 'result' || ps === 'mResult') && (
+        {/* ── RESULT ── (mini fallback — hidden once full ResultModal is shown) */}
+        {(ps === 'result' || (ps === 'mResult' && !resultShown)) && (
           <div className="p-5">
             <div className="font-display font-black text-[26px] uppercase mb-1.5"
               style={{ color: resHumanWon ? '#10b981' : '#f43f5e',
@@ -884,7 +905,7 @@ export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } =
           roundId={frozenResult.roundId}
           txHash={isLive ? txHash : undefined}
           duration={displayTotal}
-          onPlayAgain={() => { resetMock(); setForceMock(false) }}
+          onPlayAgain={handlePlayAgain}
         />
       )}
     </div>
