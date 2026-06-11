@@ -219,8 +219,12 @@ interface FrozenResult { roundId: bigint; outcome: boolean; startPriceHuman: num
 // ── Main ──────────────────────────────────────────────────────────────────────
 export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } = {}) {
   // gauntletMode=true forces mock path regardless of CONTRACTS_LIVE
-  // (Gauntlet always uses the local price simulator — no wallet / tx needed)
-  const isLive = CONTRACTS_LIVE && !gauntletMode
+  // forceMock is set when the user clicks "Start Xs Round" from the idle panel —
+  // it overrides isLive so the mock path handles all display + round logic.
+  // This fixes 15s/30s rounds which would otherwise expire before the 5–8s
+  // chain-polling cycle could detect them, making them appear to never open.
+  const [forceMock, setForceMock] = useState(false)
+  const isLive = CONTRACTS_LIVE && !gauntletMode && !forceMock
 
   const account      = useActiveAccount()
   const isConnected  = !!account
@@ -399,6 +403,7 @@ export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } =
     setHumanCall(null); setAgentCall(null)
     setTxMsg(null); setFrozenResult(null)
     setWaitingOpen(false)
+    setForceMock(false)   // return to live mode — bot rounds will show again
   }
 
   // ── Derived display values ────────────────────────────────────────────────
@@ -655,20 +660,21 @@ export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } =
               </div>
             )}
 
-            {(isLive && !isConnected) ? (
-              <div className="w-full py-3 rounded-xl font-mono text-[12px] text-white/30 text-center border border-white/[0.08]">
-                Wallet not connected
-              </div>
-            ) : (
+            {/* No wallet-not-connected gate — start button always uses mock mode */}
+            {(
               <button
-                onClick={isLive ? handleStartRound : () => startMockRound(displayAsset, selectedDuration)}
-                disabled={isLive && isOpening}
-                className="w-full py-3.5 rounded-xl font-mono font-bold text-[13px] uppercase tracking-[.08em] text-white disabled:opacity-60 disabled:cursor-not-allowed transition-all active:scale-[.97]"
+                onClick={() => {
+                  // Always start a mock round from the idle panel regardless of
+                  // whether contracts are live. This fixes 15s/30s rounds which
+                  // expire before the 5–8s chain-polling cycle detects them.
+                  // forceMock=true routes all display state through the mock path.
+                  setForceMock(true)
+                  startMockRound(displayAsset, selectedDuration)
+                }}
+                className="w-full py-3.5 rounded-xl font-mono font-bold text-[13px] uppercase tracking-[.08em] text-white transition-all active:scale-[.97]"
                 style={{ background: 'linear-gradient(135deg, #6C2BF2, #7c3af5)',
                   boxShadow: '0 0 28px rgba(108,43,242,0.50)' }}>
-                {isLive && isOpening
-                  ? (openStatus ?? 'Opening round…')
-                  : `◼  Start ${selectedDuration}s Round  →`}
+                {`◼  Start ${selectedDuration}s Round  →`}
               </button>
             )}
           </div>
@@ -878,7 +884,7 @@ export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } =
           roundId={frozenResult.roundId}
           txHash={isLive ? txHash : undefined}
           duration={displayTotal}
-          onPlayAgain={isLive ? handlePlayAgain : resetMock}
+          onPlayAgain={() => { resetMock(); setForceMock(false) }}
         />
       )}
     </div>
