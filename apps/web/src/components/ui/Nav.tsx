@@ -20,7 +20,7 @@ export function Nav() {
             { href: '/agents', label: 'Agents' },
             { href: '/leaderboard', label: 'Board' },
           ].map((l) => (
-            <Link key={l.href} href={l.href}
+            <Link key={l.href} href={l.href} prefetch={true}
               className="font-mono text-[12px] font-medium tracking-[.04em] uppercase no-underline text-ink-2 px-3 py-1.5 rounded-full transition-colors hover:bg-surface hover:text-ink">
               {l.label}
             </Link>
