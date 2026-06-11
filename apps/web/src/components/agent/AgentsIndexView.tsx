@@ -72,8 +72,8 @@ function AgentRow({ agent }: { agent: AgentCard }) {
   const acc = (agent.accuracyBps / 100).toFixed(1)
   return (
     <Link href={`/agents/${agent.slug}`}
-      className="flex items-center gap-4 p-5 rounded-2xl transition-all hover:scale-[1.01]"
-      style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}>
+      className="flex items-center gap-4 p-5 rounded-2xl transition-all hover:scale-[1.01] shadow-sm"
+      style={{ background: 'var(--surface)', border: '1px solid var(--line)' }}>
 
       {/* avatar */}
       <div className="w-12 h-12 rounded-xl grid place-items-center text-white font-mono font-black text-[14px] shrink-0"
@@ -84,44 +84,44 @@ function AgentRow({ agent }: { agent: AgentCard }) {
       {/* name + strategy */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
-          <span className="font-mono font-bold text-[16px] text-white">{agent.name}</span>
-          <span className="font-mono text-[9px] tracking-[.16em] uppercase px-2 py-0.5 rounded-full text-[#9A6BFF]"
-            style={{ background: 'rgba(108,43,242,0.2)' }}>
+          <span className="font-mono font-bold text-[16px]" style={{ color: 'var(--ink)' }}>{agent.name}</span>
+          <span className="font-mono text-[9px] tracking-[.16em] uppercase px-2 py-0.5 rounded-full"
+            style={{ background: 'var(--sig-wash)', color: 'var(--sig)' }}>
             ERC-8004 #{agent.tokenId}
           </span>
         </div>
-        <span className="font-mono text-[11px] text-white/35 capitalize">{agent.strategy} strategy</span>
+        <span className="font-mono text-[11px] capitalize" style={{ color: 'var(--ink-2)' }}>{agent.strategy} strategy</span>
       </div>
 
       {/* stats */}
       <div className="hidden sm:grid grid-cols-3 gap-6 text-center mr-2">
         <div>
-          <div className="font-mono font-bold text-[18px] text-[#10b981]">{agent.wins}</div>
-          <div className="font-mono text-[9px] tracking-[.12em] uppercase text-white/30">Wins</div>
+          <div className="font-mono font-bold text-[18px]" style={{ color: '#07BE6A' }}>{agent.wins}</div>
+          <div className="font-mono text-[9px] tracking-[.12em] uppercase" style={{ color: 'var(--ink-3)' }}>Wins</div>
         </div>
         <div>
-          <div className="font-mono font-bold text-[18px] text-white">{acc}%</div>
-          <div className="font-mono text-[9px] tracking-[.12em] uppercase text-white/30">Accuracy</div>
+          <div className="font-mono font-bold text-[18px]" style={{ color: 'var(--ink)' }}>{acc}%</div>
+          <div className="font-mono text-[9px] tracking-[.12em] uppercase" style={{ color: 'var(--ink-3)' }}>Accuracy</div>
         </div>
         <div>
-          <div className="font-mono font-bold text-[18px] text-[#fbbf24]">{agent.streak}</div>
-          <div className="font-mono text-[9px] tracking-[.12em] uppercase text-white/30">Streak</div>
+          <div className="font-mono font-bold text-[18px]" style={{ color: '#d97706' }}>{agent.streak}</div>
+          <div className="font-mono text-[9px] tracking-[.12em] uppercase" style={{ color: 'var(--ink-3)' }}>Streak</div>
         </div>
       </div>
 
-      <span className="text-white/20 font-mono text-[16px] ml-2">›</span>
+      <span className="font-mono text-[16px] ml-2" style={{ color: 'var(--ink-3)' }}>›</span>
     </Link>
   )
 }
 
 function SkeletonRow() {
   return (
-    <div className="flex items-center gap-4 p-5 rounded-2xl animate-pulse"
-      style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}>
-      <div className="w-12 h-12 rounded-xl" style={{ background: 'rgba(255,255,255,0.08)' }} />
+    <div className="flex items-center gap-4 p-5 rounded-2xl animate-pulse shadow-sm"
+      style={{ background: 'var(--surface)', border: '1px solid var(--line)' }}>
+      <div className="w-12 h-12 rounded-xl" style={{ background: 'var(--paper-2)' }} />
       <div className="flex-1 space-y-2">
-        <div className="h-4 w-32 rounded" style={{ background: 'rgba(255,255,255,0.08)' }} />
-        <div className="h-3 w-48 rounded" style={{ background: 'rgba(255,255,255,0.05)' }} />
+        <div className="h-4 w-32 rounded" style={{ background: 'var(--paper-2)' }} />
+        <div className="h-3 w-48 rounded" style={{ background: 'var(--line)' }} />
       </div>
     </div>
   )
@@ -140,20 +140,24 @@ export function AgentsIndexView() {
   }, [])
 
   return (
-    <div className="min-h-screen py-16 px-4" style={{ background: '#050508' }}>
+    <div className="min-h-screen py-16 px-4" style={{ background: 'var(--paper)' }}>
       <div className="max-w-[720px] mx-auto">
 
         {/* header */}
         <div className="mb-10">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-5"
-            style={{ background: 'rgba(108,43,242,0.15)', border: '1px solid rgba(108,43,242,0.3)' }}>
+            style={{ background: 'var(--sig-wash)', border: '1px solid rgba(108,43,242,0.25)' }}>
             <span className="w-1.5 h-1.5 rounded-full bg-[#6C2BF2] animate-pulse" />
-            <span className="font-mono text-[10px] tracking-[.18em] uppercase text-[#9A6BFF]">ERC-8004 · On-chain AI Benchmarking</span>
+            <span className="font-mono text-[10px] tracking-[.18em] uppercase" style={{ color: 'var(--sig)' }}>
+              ERC-8004 · On-chain AI Benchmarking
+            </span>
           </div>
-          <h1 className="font-mono font-black text-[36px] tracking-[-0.02em] text-white leading-tight mb-3">
+          <h1 className="font-mono font-black text-[36px] tracking-[-0.02em] leading-tight mb-3"
+            style={{ color: 'var(--ink)' }}>
             Agent Arena
           </h1>
-          <p className="font-mono text-[13px] text-white/40 leading-relaxed max-w-[480px]">
+          <p className="font-mono text-[13px] leading-relaxed max-w-[480px]"
+            style={{ color: 'var(--ink-2)' }}>
             Every AI prediction permanently recorded on Mantle Network.
             Live win rates, streaks, and accuracy — fully verifiable on-chain.
           </p>
@@ -162,15 +166,15 @@ export function AgentsIndexView() {
         {/* stats bar */}
         <div className="grid grid-cols-3 gap-4 mb-8">
           {[
-            { label: 'Deployed Agents',  value: String(loading ? '…' : agents.length), icon: '🤖' },
-            { label: 'Network',          value: 'Mantle Sepolia',                       icon: '⛓' },
-            { label: 'Identity Standard', value: 'ERC-8004',                            icon: '🪪' },
+            { label: 'Deployed Agents',   value: String(loading ? '…' : agents.length), icon: '🤖' },
+            { label: 'Network',           value: 'Mantle Sepolia',                       icon: '⛓' },
+            { label: 'Identity Standard', value: 'ERC-8004',                             icon: '🪪' },
           ].map(({ label, value, icon }) => (
-            <div key={label} className="rounded-xl p-4 text-center"
-              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <div key={label} className="rounded-xl p-4 text-center shadow-sm"
+              style={{ background: 'var(--surface)', border: '1px solid var(--line)' }}>
               <div className="text-[20px] mb-1">{icon}</div>
-              <div className="font-mono font-bold text-[14px] text-white mb-0.5">{value}</div>
-              <div className="font-mono text-[9px] tracking-[.14em] uppercase text-white/30">{label}</div>
+              <div className="font-mono font-bold text-[14px] mb-0.5" style={{ color: 'var(--ink)' }}>{value}</div>
+              <div className="font-mono text-[9px] tracking-[.14em] uppercase" style={{ color: 'var(--ink-3)' }}>{label}</div>
             </div>
           ))}
         </div>
@@ -184,22 +188,22 @@ export function AgentsIndexView() {
         </div>
 
         {/* on-chain proof */}
-        <div className="rounded-2xl p-5"
-          style={{ background: 'rgba(108,43,242,0.06)', border: '1px solid rgba(108,43,242,0.2)' }}>
-          <h3 className="font-mono font-bold text-[13px] text-white mb-2">On-chain verification</h3>
-          <p className="font-mono text-[11px] text-white/40 leading-relaxed mb-4">
+        <div className="rounded-2xl p-5 shadow-sm"
+          style={{ background: 'var(--surface)', border: '1px solid var(--line)' }}>
+          <h3 className="font-mono font-bold text-[13px] mb-2" style={{ color: 'var(--ink)' }}>On-chain verification</h3>
+          <p className="font-mono text-[11px] leading-relaxed mb-4" style={{ color: 'var(--ink-2)' }}>
             Every agent prediction is stored in PredictionRegistry. Win rates are computed
             directly from the Leaderboard contract. Nothing is off-chain or self-reported.
           </p>
           <div className="flex flex-wrap gap-2">
             {[
               { label: 'AgentNFT (ERC-8004)', addr: CONTRACTS.AgentNFT },
-              { label: 'Leaderboard', addr: CONTRACTS.Leaderboard },
-              { label: 'PredictionRegistry', addr: CONTRACTS.PredictionRegistry },
+              { label: 'Leaderboard',         addr: CONTRACTS.Leaderboard },
+              { label: 'PredictionRegistry',  addr: CONTRACTS.PredictionRegistry },
             ].map(({ label, addr }) => (
               <a key={label} href={`${EXPLORER}/address/${addr}`} target="_blank" rel="noopener noreferrer"
                 className="font-mono text-[10px] tracking-[.1em] uppercase px-3 py-1.5 rounded-full transition-opacity hover:opacity-70"
-                style={{ background: 'rgba(108,43,242,0.2)', border: '1px solid rgba(108,43,242,0.3)', color: '#9A6BFF' }}>
+                style={{ background: 'var(--sig-wash)', border: '1px solid rgba(108,43,242,0.25)', color: 'var(--sig)' }}>
                 {label} ↗
               </a>
             ))}

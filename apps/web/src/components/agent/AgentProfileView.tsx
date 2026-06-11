@@ -19,7 +19,6 @@ const viemClient = createPublicClient({
   transport: http(),
 })
 
-// Known agents — keyed by the slug used in the URL
 const AGENT_SLUGS: Record<string, { wallet: string; initials: string; color: string }> = {
   'axiom-7': {
     wallet: AGENT_WALLET,
@@ -81,12 +80,12 @@ function AccBar({ accuracyBps }: { accuracyBps: bigint }) {
   return (
     <div className="w-full">
       <div className="flex justify-between mb-1">
-        <span className="font-mono text-[10px] tracking-[.14em] uppercase text-white/40">Win rate</span>
-        <span className="font-mono text-[12px] font-bold text-white">{pct.toFixed(1)}%</span>
+        <span className="font-mono text-[10px] tracking-[.14em] uppercase" style={{ color: 'var(--ink-3)' }}>Win rate</span>
+        <span className="font-mono text-[12px] font-bold" style={{ color: 'var(--ink)' }}>{pct.toFixed(1)}%</span>
       </div>
-      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--line-2)' }}>
         <div className="h-full rounded-full transition-all duration-700"
-          style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #6C2BF2, #00ff9d)' }} />
+          style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #6C2BF2, #07BE6A)' }} />
       </div>
     </div>
   )
@@ -94,11 +93,12 @@ function AccBar({ accuracyBps }: { accuracyBps: bigint }) {
 
 function StatBox({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
-    <div className="rounded-xl border p-4 text-center"
-      style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.07)' }}>
-      <div className="font-mono font-black text-[24px] leading-none mb-1" style={{ color: color ?? 'white' }}>{value}</div>
-      {sub && <div className="font-mono text-[9px] text-white/25 mb-1">{sub}</div>}
-      <div className="font-mono text-[10px] tracking-[.14em] uppercase text-white/40">{label}</div>
+    <div className="rounded-xl border p-4 text-center shadow-sm"
+      style={{ background: 'var(--surface)', borderColor: 'var(--line)' }}>
+      <div className="font-mono font-black text-[24px] leading-none mb-1"
+        style={{ color: color ?? 'var(--ink)' }}>{value}</div>
+      {sub && <div className="font-mono text-[9px] mb-1" style={{ color: 'var(--ink-3)' }}>{sub}</div>}
+      <div className="font-mono text-[10px] tracking-[.14em] uppercase" style={{ color: 'var(--ink-3)' }}>{label}</div>
     </div>
   )
 }
@@ -119,8 +119,8 @@ export function AgentProfileView({ agentId }: AgentProfileViewProps) {
 
   if (!meta) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#050508' }}>
-        <p className="font-mono text-white/30 text-[14px]">Agent not found.</p>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--paper)' }}>
+        <p className="font-mono text-[14px]" style={{ color: 'var(--ink-3)' }}>Agent not found.</p>
       </div>
     )
   }
@@ -131,28 +131,32 @@ export function AgentProfileView({ agentId }: AgentProfileViewProps) {
   const losses   = stats ? Number(stats.losses) : 0
 
   return (
-    <div className="min-h-screen py-16 px-4" style={{ background: '#050508' }}>
+    <div className="min-h-screen py-16 px-4" style={{ background: 'var(--paper)' }}>
       <div className="max-w-[640px] mx-auto">
 
         {/* breadcrumb */}
         <div className="flex items-center gap-2 mb-8">
-          <Link href="/agents" className="font-mono text-[11px] tracking-[.14em] uppercase text-white/30 hover:text-white/60 transition-colors">
+          <Link href="/agents"
+            className="font-mono text-[11px] tracking-[.14em] uppercase transition-colors hover:opacity-70"
+            style={{ color: 'var(--ink-3)' }}>
             ← Agents
           </Link>
         </div>
 
         {/* ERC-8004 badge */}
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-6"
-          style={{ background: 'rgba(108,43,242,0.15)', border: '1px solid rgba(108,43,242,0.3)' }}>
+          style={{ background: 'var(--sig-wash)', border: '1px solid rgba(108,43,242,0.25)' }}>
           <span className="w-1.5 h-1.5 rounded-full bg-[#6C2BF2] animate-pulse" />
-          <span className="font-mono text-[10px] tracking-[.18em] uppercase text-[#9A6BFF]">ERC-8004 · Agent Identity</span>
+          <span className="font-mono text-[10px] tracking-[.18em] uppercase" style={{ color: 'var(--sig)' }}>
+            ERC-8004 · Agent Identity
+          </span>
         </div>
 
         {/* identity card */}
-        <div className="rounded-2xl overflow-hidden mb-6"
-          style={{ border: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.02)' }}>
+        <div className="rounded-2xl overflow-hidden mb-6 shadow-sm"
+          style={{ border: '1px solid var(--line)', background: 'var(--surface)' }}>
 
-          <div className="p-6 border-b" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
+          <div className="p-6 border-b" style={{ borderColor: 'var(--line)' }}>
             <div className="flex items-center gap-4 mb-4">
               <div className="w-16 h-16 rounded-2xl grid place-items-center text-white font-mono font-black text-[18px] shrink-0"
                 style={{ background: meta.color }}>
@@ -160,20 +164,24 @@ export function AgentProfileView({ agentId }: AgentProfileViewProps) {
               </div>
               <div>
                 {loading ? (
-                  <div className="h-7 w-32 rounded-lg animate-pulse mb-1" style={{ background: 'rgba(255,255,255,0.08)' }} />
+                  <div className="h-7 w-32 rounded-lg animate-pulse mb-1" style={{ background: 'var(--paper-2)' }} />
                 ) : (
-                  <h1 className="font-mono font-black text-[24px] tracking-[-.02em] text-white">{stats?.name ?? agentId}</h1>
+                  <h1 className="font-mono font-black text-[24px] tracking-[-.02em]" style={{ color: 'var(--ink)' }}>
+                    {stats?.name ?? agentId}
+                  </h1>
                 )}
-                <span className="font-mono text-[11px] tracking-[.1em] uppercase text-[#6C2BF2]">
+                <span className="font-mono text-[11px] tracking-[.1em] uppercase" style={{ color: 'var(--sig)' }}>
                   {stats?.strategy ?? 'AI Agent'} · Token #{stats?.tokenId ?? '—'}
                 </span>
               </div>
             </div>
 
             {loading ? (
-              <div className="h-4 w-full rounded animate-pulse" style={{ background: 'rgba(255,255,255,0.06)' }} />
+              <div className="h-4 w-full rounded animate-pulse" style={{ background: 'var(--paper-2)' }} />
             ) : (
-              <p className="font-mono text-[12px] text-white/40 leading-relaxed">{stats?.description}</p>
+              <p className="font-mono text-[12px] leading-relaxed" style={{ color: 'var(--ink-2)' }}>
+                {stats?.description}
+              </p>
             )}
           </div>
 
@@ -183,19 +191,19 @@ export function AgentProfileView({ agentId }: AgentProfileViewProps) {
               {stats && <AccBar accuracyBps={stats.accuracyBps} />}
             </div>
             <div className="grid grid-cols-4 gap-3">
-              <StatBox label="Wins"       value={loading ? '…' : String(wins)}    color="#10b981" />
-              <StatBox label="Losses"     value={loading ? '…' : String(losses)}  color="#f43f5e" />
-              <StatBox label="Streak"     value={loading ? '…' : String(stats?.streak ?? 0)} sub="current" color="#fbbf24" />
-              <StatBox label="Best"       value={loading ? '…' : String(stats?.bestStreak ?? 0)} sub="streak"  />
+              <StatBox label="Wins"   value={loading ? '…' : String(wins)}   color="#07BE6A" />
+              <StatBox label="Losses" value={loading ? '…' : String(losses)} color="#F12E49" />
+              <StatBox label="Streak" value={loading ? '…' : String(stats?.streak ?? 0)} sub="current" color="#d97706" />
+              <StatBox label="Best"   value={loading ? '…' : String(stats?.bestStreak ?? 0)} sub="streak" />
             </div>
           </div>
         </div>
 
         {/* on-chain identity */}
-        <div className="rounded-2xl overflow-hidden mb-6"
-          style={{ border: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.02)' }}>
-          <div className="px-5 py-3 border-b font-mono text-[10px] tracking-[.2em] uppercase text-white/30"
-            style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
+        <div className="rounded-2xl overflow-hidden mb-6 shadow-sm"
+          style={{ border: '1px solid var(--line)', background: 'var(--surface)' }}>
+          <div className="px-5 py-3 border-b font-mono text-[10px] tracking-[.2em] uppercase"
+            style={{ borderColor: 'var(--line)', color: 'var(--ink-3)', background: 'var(--paper)' }}>
             On-chain identity · Mantle Sepolia
           </div>
           {[
@@ -206,17 +214,17 @@ export function AgentProfileView({ agentId }: AgentProfileViewProps) {
             { k: 'Since block',  v: stats ? new Date(stats.mintedAt * 1000).toLocaleDateString() : '—' },
           ].map(({ k, v, link }) => (
             <div key={k} className="flex justify-between items-center px-5 py-3.5 border-t font-mono"
-              style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
-              <span className="text-[11px] tracking-[.1em] uppercase text-white/30">{k}</span>
+              style={{ borderColor: 'var(--line)' }}>
+              <span className="text-[11px] tracking-[.1em] uppercase" style={{ color: 'var(--ink-3)' }}>{k}</span>
               {link ? (
                 <a href={link} target="_blank" rel="noopener noreferrer"
-                  className="text-[11px] px-2 py-0.5 rounded-lg text-[#9A6BFF] hover:text-white transition-colors"
-                  style={{ background: 'rgba(108,43,242,0.15)', border: '1px solid rgba(108,43,242,0.25)' }}>
+                  className="text-[11px] px-2 py-0.5 rounded-lg transition-opacity hover:opacity-70"
+                  style={{ background: 'var(--sig-wash)', border: '1px solid rgba(108,43,242,0.25)', color: 'var(--sig)' }}>
                   {v} ↗
                 </a>
               ) : (
-                <span className="text-[11px] px-2 py-0.5 rounded-lg text-white/60"
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <span className="text-[11px] px-2 py-0.5 rounded-lg"
+                  style={{ background: 'var(--paper)', border: '1px solid var(--line)', color: 'var(--ink-2)' }}>
                   {v}
                 </span>
               )}
@@ -229,12 +237,12 @@ export function AgentProfileView({ agentId }: AgentProfileViewProps) {
           <a href={`${EXPLORER}/address/${CONTRACTS.AgentNFT}`}
             target="_blank" rel="noopener noreferrer"
             className="flex-1 text-center font-mono text-[12px] font-bold tracking-[.08em] uppercase text-white py-3 rounded-full transition-opacity hover:opacity-80"
-            style={{ background: 'linear-gradient(135deg, #6C2BF2, #9A6BFF)' }}>
+            style={{ background: 'var(--sig)' }}>
             View ERC-8004 NFT ↗
           </a>
           <Link href="/arena"
             className="flex-1 text-center font-mono text-[12px] font-bold tracking-[.08em] uppercase py-3 rounded-full transition-opacity hover:opacity-80"
-            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}>
+            style={{ background: 'var(--surface)', border: '1px solid var(--line-2)', color: 'var(--ink)' }}>
             Challenge {stats?.name ?? 'Agent'} →
           </Link>
         </div>
