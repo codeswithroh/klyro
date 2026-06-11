@@ -35,6 +35,7 @@ import { useResolveRound }            from '@/lib/hooks/useResolveRound'
 import { useRoundStore, type Call, type PricePoint } from '@/lib/store/roundStore'
 import { useIdlePriceTick }           from '@/lib/hooks/useIdlePriceTick'
 import { useRoundTimer }              from '@/lib/hooks/useRoundTimer'
+import { getDurationMultiplier }      from './ResultModal'
 import { ArenaChart }                 from './ArenaChart'
 import { ResultModal }               from './ResultModal'
 import { formatPrice, type AssetPair } from '@/lib/mock/priceSimulator'
@@ -546,6 +547,21 @@ export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } =
               className="font-mono text-[9px] text-white/20 hover:text-white/45 transition-colors">
               ▦
             </Link>
+          </div>
+        )}
+
+        {/* Duration chip — shown whenever a round is active */}
+        {displayIsOpen && displayTotal > 0 && (
+          <div className="flex items-center gap-1.5 px-4 border-r border-white/[0.06]">
+            <span className="font-mono text-[11px] text-white/55">
+              {displayTotal}s
+            </span>
+            {getDurationMultiplier(displayTotal) > 1 && (
+              <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                style={{ background: 'rgba(108,43,242,0.25)', color: '#9A6BFF' }}>
+                {getDurationMultiplier(displayTotal)}×
+              </span>
+            )}
           </div>
         )}
 

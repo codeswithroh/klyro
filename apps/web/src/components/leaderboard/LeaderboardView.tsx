@@ -8,6 +8,7 @@ import { useRoundStore } from '@/lib/store/roundStore'
 import { EXPLORER_URL } from '@/lib/contracts/chain'
 
 type Filter = 'all' | 'human' | 'agent'
+type DurationFilter = 'all' | 15 | 30 | 45 | 60
 
 // ── Skeleton row while loading ────────────────────────────────────────────────
 
@@ -94,7 +95,8 @@ function Row({ entry, isYou }: { entry: OnchainEntry; isYou: boolean }) {
 // ── Main view ─────────────────────────────────────────────────────────────────
 
 export function LeaderboardView() {
-  const [filter, setFilter] = useState<Filter>('all')
+  const [filter, setFilter]           = useState<Filter>('all')
+  const [durationFilter, setDuration] = useState<DurationFilter>('all')
   const account = useActiveAccount()
 
   // On-chain data
@@ -198,15 +200,54 @@ export function LeaderboardView() {
           </div>
         )}
 
-        {/* filter pills */}
-        <div className="flex gap-2 mb-6">
-          {(['all', 'human', 'agent'] as Filter[]).map((f) => (
-            <button key={f} onClick={() => setFilter(f)}
-              className={`font-mono text-[11px] font-semibold tracking-[.12em] uppercase px-4 py-2 rounded-full border transition-colors ${filter === f ? 'bg-sig text-white border-transparent shadow-sig' : 'bg-surface border-line-2 text-ink-2 hover:text-ink'}`}>
-              {f}
-            </button>
-          ))}
+        {/* filter rows */}
+        <div className="flex flex-col gap-2 mb-6">
+          {/* Player type filter */}
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[9px] uppercase tracking-[.14em] text-ink-3 w-16 shrink-0">Type</span>
+            <div className="flex gap-1.5">
+              {(['all', 'human', 'agent'] as Filter[]).map((f) => (
+                <button key={f} onClick={() => setFilter(f)}
+                  className={`font-mono text-[11px] font-semibold tracking-[.1em] uppercase px-3.5 py-1.5 rounded-full border transition-colors ${filter === f ? 'bg-sig text-white border-transparent' : 'bg-surface border-line-2 text-ink-2 hover:text-ink'}`}>
+                  {f}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Duration filter */}
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[9px] uppercase tracking-[.14em] text-ink-3 w-16 shrink-0">Duration</span>
+            <div className="flex gap-1.5 flex-wrap">
+              {(['all', 15, 30, 45, 60] as DurationFilter[]).map((d) => (
+                <button key={d} onClick={() => setDuration(d)}
+                  className={`font-mono text-[11px] font-semibold tracking-[.06em] uppercase px-3.5 py-1.5 rounded-full border transition-colors ${durationFilter === d ? 'bg-sig text-white border-transparent' : 'bg-surface border-line-2 text-ink-2 hover:text-ink'}`}>
+                  {d === 'all' ? 'All' : `${d}s`}
+                  {d !== 'all' && (
+                    <span className={`ml-1 text-[9px] ${durationFilter === d ? 'text-white/70' : 'text-ink-3'}`}>
+                      {d <= 15 ? '4×' : d <= 30 ? '2×' : d <= 45 ? '1.5×' : '1×'}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
+
+        {/* Duration info banner */}
+        {durationFilter !== 'all' && (
+          <div className="mb-5 flex items-center gap-2.5 bg-paper border border-line rounded-lg px-4 py-2.5">
+            <span className="font-mono text-[18px]">⚡</span>
+            <div>
+              <span className="font-mono text-[11px] font-semibold text-ink">
+                {durationFilter}s rounds · {durationFilter <= 15 ? '4×' : durationFilter <= 30 ? '2×' : durationFilter <= 45 ? '1.5×' : '1×'} point multiplier
+              </span>
+              <span className="font-mono text-[10px] text-ink-3 ml-2">
+                Per-duration rankings coming soon — showing global standings
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* table */}
         <div className="bg-surface border border-line rounded-lg overflow-hidden shadow">
