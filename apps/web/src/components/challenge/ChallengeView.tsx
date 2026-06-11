@@ -60,64 +60,63 @@ function BetweenRoundCard({
   record: RoundRecord; humanScore: number; agentScore: number
   totalRounds: number; roundNum: number; onNext: () => void
 }) {
-  const accent   = record.verdict === 'win' ? '#10b981'
-    : record.verdict === 'lose' ? '#f43f5e' : '#fbbf24'
-  const isLast   = roundNum >= totalRounds
+  const accent       = record.verdict === 'win' ? '#07BE6A'
+    : record.verdict === 'lose' ? '#F12E49' : '#d97706'
+  const isLast       = roundNum >= totalRounds
   const humanWinning = humanScore > agentScore
-  const tied     = humanScore === agentScore
+  const tied         = humanScore === agentScore
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(2,4,10,0.97)', backdropFilter: 'blur(10px)' }}>
-      <div className="w-full max-w-[340px] rounded-2xl overflow-hidden"
-        style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${accent}44`,
-          boxShadow: `0 0 60px ${accent}22` }}>
+      style={{ background: 'var(--paper)', backdropFilter: 'blur(8px)' }}>
+      <div className="w-full max-w-[360px] rounded-2xl overflow-hidden shadow-lg"
+        style={{ background: 'var(--surface)', border: '1px solid var(--line)' }}>
 
         {/* Round result header */}
-        <div className="px-5 py-4 text-center border-b" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
-          <div className="font-mono text-[10px] text-white/30 uppercase tracking-[.14em] mb-1">
-            Round {record.roundNum}
+        <div className="px-6 py-5 text-center border-b" style={{ borderColor: 'var(--line)' }}>
+          <div className="font-mono text-[10px] uppercase tracking-[.16em] mb-1"
+            style={{ color: 'var(--ink-3)' }}>
+            Round {record.roundNum} of {totalRounds}
           </div>
-          <div className="font-display font-black text-[32px] uppercase" style={{ color: accent }}>
+          <div className="font-display font-black text-[34px] uppercase" style={{ color: accent }}>
             {record.verdict === 'win' ? 'You Won!' : record.verdict === 'lose' ? 'AI Won' : 'Draw'}
           </div>
-          <div className="font-mono text-[12px] text-white/40 mt-1">
+          <div className="font-mono text-[12px] mt-1" style={{ color: 'var(--ink-2)' }}>
             ETH {record.outcome === 'up' ? '▲' : '▼'} {record.delta}
             {' · '}You: {record.humanCall === 'up' ? '▲' : '▼'}
             {' vs '}AI: {record.agentCall === 'up' ? '▲' : '▼'}
           </div>
         </div>
 
-        {/* Score tracker */}
-        <div className="px-5 py-5">
-          <div className="text-center mb-2">
-            <div className="font-mono text-[10px] text-white/30 uppercase tracking-[.1em] mb-3">Series Score</div>
-            <div className="flex items-center justify-center gap-6">
-              <div className="text-center">
-                <div className="font-display font-black text-[48px] text-[#10b981] leading-none">{humanScore}</div>
-                <div className="font-mono text-[10px] text-white/30 mt-1">You</div>
-              </div>
-              <div className="font-mono text-[22px] text-white/20 font-bold">-</div>
-              <div className="text-center">
-                <div className="font-display font-black text-[48px] text-[#f43f5e] leading-none">{agentScore}</div>
-                <div className="font-mono text-[10px] text-white/30 mt-1">Axiom-7</div>
-              </div>
+        {/* Score */}
+        <div className="px-6 pt-6 pb-5">
+          <div className="font-mono text-[10px] uppercase tracking-[.12em] text-center mb-4"
+            style={{ color: 'var(--ink-3)' }}>
+            Series Score
+          </div>
+          <div className="flex items-center justify-center gap-6 mb-5">
+            <div className="text-center">
+              <div className="font-display font-black text-[52px] leading-none" style={{ color: '#07BE6A' }}>{humanScore}</div>
+              <div className="font-mono text-[10px] mt-1" style={{ color: 'var(--ink-3)' }}>You</div>
+            </div>
+            <div className="font-mono text-[24px] font-bold" style={{ color: 'var(--line-2)' }}>—</div>
+            <div className="text-center">
+              <div className="font-display font-black text-[52px] leading-none" style={{ color: '#F12E49' }}>{agentScore}</div>
+              <div className="font-mono text-[10px] mt-1" style={{ color: 'var(--ink-3)' }}>Axiom-7</div>
             </div>
           </div>
 
           {/* Progress dots */}
-          <div className="flex justify-center gap-2 my-4">
-            {Array.from({ length: totalRounds }).map((_, i) => {
-              const filled = i < record.roundNum
-              return (
-                <div key={i} className="w-2.5 h-2.5 rounded-full transition-all"
-                  style={{ background: filled ? accent : 'rgba(255,255,255,0.1)' }} />
-              )
-            })}
+          <div className="flex justify-center gap-2 mb-5">
+            {Array.from({ length: totalRounds }).map((_, i) => (
+              <div key={i} className="w-2.5 h-2.5 rounded-full transition-all"
+                style={{ background: i < record.roundNum ? accent : 'var(--line-2)' }} />
+            ))}
           </div>
 
           {!isLast && (
-            <div className="font-mono text-[11px] text-center text-white/30 mb-4">
+            <div className="font-mono text-[11px] text-center mb-4"
+              style={{ color: 'var(--ink-3)' }}>
               {humanWinning ? '🔥 You\'re ahead — keep it up!'
                 : tied ? '⚖️ Tied — next round decides momentum'
                 : '📉 AI is leading — time to fight back'}
@@ -126,10 +125,8 @@ function BetweenRoundCard({
 
           <button onClick={onNext}
             className="w-full py-3.5 rounded-xl font-mono font-bold text-[13px] uppercase tracking-[.08em] text-white transition-all active:scale-[.97]"
-            style={{ background: isLast
-                ? 'linear-gradient(135deg,#6C2BF2,#7c3af5)'
-                : 'linear-gradient(135deg,#059669,#10b981)',
-              boxShadow: `0 0 24px ${isLast ? 'rgba(108,43,242,0.5)' : 'rgba(16,185,129,0.4)'}` }}>
+            style={{ background: isLast ? '#6C2BF2' : '#059669',
+              boxShadow: `0 4px 16px ${isLast ? 'rgba(108,43,242,0.35)' : 'rgba(5,150,105,0.3)'}` }}>
             {isLast ? 'View Final Report →' : `Round ${record.roundNum + 1} →`}
           </button>
         </div>
@@ -140,32 +137,35 @@ function BetweenRoundCard({
 
 // ── Metric card (Contra-style: label + impact badge + big value) ─────────────
 
-function MetricCard({ label, impact, value, sub, color = 'white', icon }: {
+function MetricCard({ label, impact, value, sub, color, icon }: {
   label: string; impact: 'HIGH' | 'MEDIUM'
   value: string; sub?: string; color?: string; icon?: string
 }) {
+  // Default value color falls back to design-system ink
+  const valColor = color ?? 'var(--ink)'
   return (
     <div className="rounded-xl p-4 flex flex-col justify-between min-h-[90px]"
-      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+      style={{ background: 'var(--surface)', border: '1px solid var(--line)' }}>
       <div className="flex items-start justify-between mb-3">
-        <span className="font-mono text-[11px] text-white/45 leading-tight">{label}</span>
+        <span className="font-mono text-[11px] leading-tight" style={{ color: 'var(--ink-2)' }}>{label}</span>
         <span className="font-mono text-[8px] uppercase tracking-[.1em] px-1.5 py-0.5 rounded-full shrink-0 ml-1"
           style={impact === 'HIGH'
-            ? { background: 'rgba(108,43,242,0.2)', color: '#9A6BFF' }
-            : { background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.35)' }}>
+            ? { background: 'var(--sig-wash)', color: 'var(--sig)' }
+            : { background: 'var(--paper-2)', color: 'var(--ink-3)' }}>
           {impact === 'HIGH' ? 'HIGH' : 'MED'}
         </span>
       </div>
       <div className="flex items-end justify-between">
         <div>
-          <div className="font-display font-black leading-none" style={{ fontSize: 22, color }}>
+          <div className="font-display font-black leading-none" style={{ fontSize: 22, color: valColor }}>
             {icon && <span className="mr-1 text-[15px]">{icon}</span>}{value}
           </div>
-          {sub && <div className="font-mono text-[10px] text-white/30 mt-1">{sub}</div>}
+          {sub && <div className="font-mono text-[10px] mt-1" style={{ color: 'var(--ink-3)' }}>{sub}</div>}
         </div>
         {/* Chevron */}
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ opacity: 0.18 }}>
-          <path d="M5 2.5l4 4.5-4 4.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M5 2.5l4 4.5-4 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+            style={{ color: 'var(--ink-3)' }}/>
         </svg>
       </div>
     </div>
@@ -220,17 +220,18 @@ function FinalReport({
   const shareUrl  = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText + '\n' + BASE_URL + '/challenge')}`
 
   return (
-    <div className="min-h-screen overflow-y-auto" style={{ background: '#050508' }}>
+    <div className="min-h-screen overflow-y-auto" style={{ background: 'var(--paper)' }}>
       <div className="max-w-[540px] mx-auto px-5 pt-8 pb-16">
 
         {/* Breadcrumb */}
-        <div className="font-mono text-[10px] uppercase tracking-[.18em] text-white/25 mb-7">
+        <div className="font-mono text-[10px] uppercase tracking-[.18em] mb-7"
+          style={{ color: 'var(--ink-3)' }}>
           {DIFFICULTY_CONFIG[difficulty].label} &middot; Final Report
         </div>
 
-        {/* ── Hero card (Contra-style) ─────────────────────────────────── */}
-        <div className="rounded-2xl p-6 mb-5"
-          style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${accent}30` }}>
+        {/* ── Hero card ───────────────────────────────────────────────── */}
+        <div className="rounded-2xl p-6 mb-5 shadow-sm"
+          style={{ background: 'var(--surface)', border: '1px solid var(--line)' }}>
           <div className="flex items-start gap-4">
 
             {/* Left: big number + context */}
@@ -240,16 +241,18 @@ function FinalReport({
                   style={{ fontSize: 64, color: accent, lineHeight: 1 }}>
                   {totalPts}
                 </span>
-                <span className="font-mono text-[14px] text-white/30 mb-2">pts</span>
+                <span className="font-mono text-[14px] mb-2" style={{ color: 'var(--ink-3)' }}>pts</span>
               </div>
-              <div className="font-display font-bold text-[17px] text-white leading-tight mb-1">
+              <div className="font-display font-bold text-[17px] leading-tight mb-1"
+                style={{ color: 'var(--ink)' }}>
                 {humanWon
                   ? `You beat Axiom-7 ${humanScore}–${agentScore}`
                   : tied
                   ? `Dead heat ${humanScore}–${agentScore}`
                   : `Axiom-7 won ${agentScore}–${humanScore}`}
               </div>
-              <div className="font-mono text-[12px] text-white/35 leading-relaxed mb-3">
+              <div className="font-mono text-[12px] leading-relaxed mb-3"
+                style={{ color: 'var(--ink-2)' }}>
                 {humanWon ? 'You out-predicted the machine.' : tied ? 'An even match.' : 'The algorithm prevailed.'}
               </div>
               <div className="font-mono text-[11px]" style={{ color: accent }}>
@@ -260,22 +263,18 @@ function FinalReport({
             {/* Right: circular badge ring */}
             <div className="relative shrink-0" style={{ width: 96, height: 96 }}>
               <svg viewBox="0 0 100 100" width={96} height={96}>
-                {/* Track */}
                 <circle cx="50" cy="50" r={RING_R} fill="none"
-                  stroke="rgba(255,255,255,0.07)" strokeWidth="6" />
-                {/* Fill */}
+                  stroke="var(--line-2)" strokeWidth="6" />
                 <circle cx="50" cy="50" r={RING_R} fill="none"
                   stroke={accent} strokeWidth="6"
                   strokeLinecap="round"
                   strokeDasharray={RING_CIRC}
                   strokeDashoffset={RING_CIRC * (1 - ringFill)}
-                  style={{ transform: 'rotate(-90deg)', transformOrigin: '50px 50px',
-                    filter: `drop-shadow(0 0 4px ${accent}88)` }} />
+                  style={{ transform: 'rotate(-90deg)', transformOrigin: '50px 50px' }} />
               </svg>
-              {/* Badge icon centred in ring */}
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5">
                 <span style={{ fontSize: 26, lineHeight: 1 }}>{matchBadge.icon}</span>
-                <span className="font-mono text-[9px]" style={{ color: accent }}>{winRatePct}%</span>
+                <span className="font-mono text-[9px] font-semibold" style={{ color: accent }}>{winRatePct}%</span>
               </div>
             </div>
           </div>
@@ -283,79 +282,86 @@ function FinalReport({
 
         {/* ── Section: Match performance grid ─────────────────────────── */}
         <div className="mb-1">
-          <div className="font-display font-bold text-[18px] text-white mb-0.5">Match performance</div>
-          <div className="font-mono text-[12px] text-white/35 mb-5">
+          <div className="font-display font-bold text-[18px] mb-0.5" style={{ color: 'var(--ink)' }}>
+            Match performance
+          </div>
+          <div className="font-mono text-[12px] mb-5" style={{ color: 'var(--ink-2)' }}>
             Understand your edge against Axiom-7.
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3 mb-5">
           <MetricCard
-            label="Match Result"   impact="HIGH"
+            label="Match Result" impact="HIGH"
             value={`${humanScore} – ${agentScore}`}
             sub={humanWon ? 'Victory' : tied ? 'Draw' : 'Defeated'}
             color={accent}
           />
           <MetricCard
-            label="Points Earned"  impact="HIGH"
+            label="Points Earned" impact="HIGH"
             value={`${totalPts}`}
             sub="pts this match"
-            color="#9A6BFF"
+            color="var(--sig)"
             icon="★"
           />
           <MetricCard
-            label="Win Rate"       impact="HIGH"
+            label="Win Rate" impact="HIGH"
             value={`${winRatePct}%`}
             sub={`${humanScore} / ${totalRounds} rounds`}
-            color={winRatePct >= 50 ? '#10b981' : '#f43f5e'}
+            color={winRatePct >= 50 ? '#07BE6A' : '#F12E49'}
           />
           <MetricCard
             label="Round Duration" impact="HIGH"
             value={`${roundDuration}s`}
             sub={`${getDurationMultiplier(roundDuration)}× pts multiplier`}
-            color="#fbbf24"
+            color="#d97706"
             icon="⚡"
           />
           <MetricCard
-            label="Strategy"       impact="MEDIUM"
+            label="Strategy" impact="MEDIUM"
             value={analysis.strategyType}
             sub={`${upCalls}↑ / ${downCalls}↓ calls`}
-            color="white"
           />
           <MetricCard
-            label="Difficulty"     impact="MEDIUM"
+            label="Difficulty" impact="MEDIUM"
             value={DIFFICULTY_CONFIG[difficulty].label}
             sub={`${totalRounds} rounds`}
-            color="white"
             icon={DIFFICULTY_CONFIG[difficulty].icon}
           />
         </div>
 
         {/* ── Round breakdown ──────────────────────────────────────────── */}
         <div className="mb-5">
-          <div className="font-display font-bold text-[18px] text-white mb-0.5">Round breakdown</div>
-          <div className="font-mono text-[12px] text-white/35 mb-4">
+          <div className="font-display font-bold text-[18px] mb-0.5" style={{ color: 'var(--ink)' }}>
+            Round breakdown
+          </div>
+          <div className="font-mono text-[12px] mb-4" style={{ color: 'var(--ink-2)' }}>
             Every call you made against the AI.
           </div>
-          <div className="rounded-2xl overflow-hidden"
-            style={{ border: '1px solid rgba(255,255,255,0.07)' }}>
+          <div className="rounded-2xl overflow-hidden shadow-sm"
+            style={{ border: '1px solid var(--line)', background: 'var(--surface)' }}>
             {records.map((r, i) => {
-              const rc = r.verdict === 'win' ? '#10b981' : r.verdict === 'lose' ? '#f43f5e' : '#fbbf24'
+              const rc = r.verdict === 'win' ? '#07BE6A' : r.verdict === 'lose' ? '#F12E49' : '#d97706'
+              const upColor = '#07BE6A'; const dnColor = '#F12E49'
               return (
                 <div key={r.roundNum}
                   className="flex items-center gap-3 px-4 py-3.5"
-                  style={{ borderBottom: i < records.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
+                  style={{ borderBottom: i < records.length - 1 ? '1px solid var(--line)' : 'none' }}>
                   <div className="w-7 h-7 rounded-full grid place-items-center font-mono text-[11px] font-bold shrink-0"
-                    style={{ background: `${rc}20`, color: rc }}>
+                    style={{ background: `${rc}18`, color: rc }}>
                     {r.roundNum}
                   </div>
-                  <div className="flex-1 font-mono text-[11px] text-white/45 leading-relaxed">
-                    You <span style={{ color: r.humanCall === 'up' ? '#10b981' : '#f43f5e' }}>
+                  <div className="flex-1 font-mono text-[11px] leading-relaxed"
+                    style={{ color: 'var(--ink-2)' }}>
+                    You{' '}
+                    <span style={{ color: r.humanCall === 'up' ? upColor : dnColor, fontWeight: 600 }}>
                       {r.humanCall === 'up' ? '▲' : '▼'}
-                    </span>{' vs '}AI <span style={{ color: r.agentCall === 'up' ? '#10b981' : '#f43f5e' }}>
+                    </span>
+                    {' vs AI '}
+                    <span style={{ color: r.agentCall === 'up' ? upColor : dnColor, fontWeight: 600 }}>
                       {r.agentCall === 'up' ? '▲' : '▼'}
                     </span>
-                    <span className="text-white/25"> · ETH {r.outcome === 'up' ? '▲' : '▼'} {r.delta}</span>
+                    <span style={{ color: 'var(--ink-3)' }}> · ETH {r.outcome === 'up' ? '▲' : '▼'} {r.delta}</span>
                   </div>
                   <div className="w-7 h-7 rounded-full grid place-items-center font-mono text-[10px] font-bold shrink-0"
                     style={{ background: `${rc}15`, color: rc }}>
@@ -370,8 +376,8 @@ function FinalReport({
         {/* ── Actions ──────────────────────────────────────────────────── */}
         <div className="space-y-2.5">
           <a href={shareUrl} target="_blank" rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-mono text-[12px] font-bold uppercase tracking-[.07em] text-white transition-opacity hover:opacity-80"
-            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.11)' }}>
+            className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-mono text-[12px] font-bold uppercase tracking-[.07em] transition-opacity hover:opacity-80 text-white"
+            style={{ background: 'var(--ink)', border: '1px solid var(--ink)' }}>
             <svg width="14" height="14" viewBox="0 0 1200 1227" fill="currentColor">
               <path d="M714.163 519.284L1160.89 0H1055.03L667.137 450.887L357.328 0H0L468.492 681.821L0 1226.37H105.866L515.491 750.218L842.672 1226.37H1200L714.137 519.284H714.163ZM569.165 687.828L521.697 619.934L144.011 79.6944H306.615L611.412 515.685L658.88 583.579L1055.08 1150.3H892.476L569.165 687.854V687.828Z"/>
             </svg>
@@ -380,13 +386,14 @@ function FinalReport({
 
           <button onClick={onRematch}
             className="w-full py-3.5 rounded-xl font-mono font-bold text-[13px] uppercase tracking-[.08em] text-white transition-all active:scale-[.97]"
-            style={{ background: 'linear-gradient(135deg,#6C2BF2,#7c3af5)',
-              boxShadow: '0 0 28px rgba(108,43,242,0.4)' }}>
+            style={{ background: 'var(--sig)',
+              boxShadow: '0 4px 20px rgba(108,43,242,0.35)' }}>
             {humanWon ? '🏆  Claim Harder Difficulty' : '🔄  Rematch'}
           </button>
 
           <button onClick={onHome}
-            className="w-full py-2 rounded-xl font-mono text-[11px] text-white/30 hover:text-white/55 transition-colors">
+            className="w-full py-2 rounded-xl font-mono text-[11px] transition-colors"
+            style={{ color: 'var(--ink-3)' }}>
             ← Back to Arena
           </button>
         </div>
@@ -489,19 +496,23 @@ export function ChallengeView() {
   if (challengePhase === 'pick') {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-4 py-16"
-        style={{ background: '#050508' }}>
+        style={{ background: 'var(--paper)' }}>
         <div className="w-full max-w-[440px]">
 
           <div className="text-center mb-10">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-5"
-              style={{ background: 'rgba(108,43,242,0.15)', border: '1px solid rgba(108,43,242,0.3)' }}>
+              style={{ background: 'var(--sig-wash)', border: '1px solid rgba(108,43,242,0.25)' }}>
               <span className="w-1.5 h-1.5 rounded-full bg-[#6C2BF2] animate-pulse" />
-              <span className="font-mono text-[10px] tracking-[.18em] uppercase text-[#9A6BFF]">Challenge Mode · Human vs AI</span>
+              <span className="font-mono text-[10px] tracking-[.18em] uppercase" style={{ color: 'var(--sig)' }}>
+                Challenge Mode · Human vs AI
+              </span>
             </div>
-            <h1 className="font-mono font-black text-[36px] tracking-[-0.02em] text-white leading-tight mb-3">
+            <h1 className="font-mono font-black text-[36px] tracking-[-0.02em] leading-tight mb-3"
+              style={{ color: 'var(--ink)' }}>
               Gauntlet Mode
             </h1>
-            <p className="font-mono text-[13px] text-white/40 leading-relaxed max-w-[340px] mx-auto">
+            <p className="font-mono text-[13px] leading-relaxed max-w-[340px] mx-auto"
+              style={{ color: 'var(--ink-2)' }}>
               Multi-round series against Axiom-7. Track your score across every round.
               Pick your difficulty and duration.
             </p>
@@ -511,20 +522,20 @@ export function ChallengeView() {
           <div className="space-y-3 mb-8">
             {(Object.entries(DIFFICULTY_CONFIG) as [Difficulty, typeof DIFFICULTY_CONFIG[Difficulty]][]).map(([key, cfg]) => (
               <button key={key} onClick={() => setDifficulty(key)}
-                className="w-full rounded-2xl p-5 text-left transition-all active:scale-[.99]"
+                className="w-full rounded-2xl p-5 text-left transition-all active:scale-[.99] shadow-sm"
                 style={{
-                  background:  difficulty === key ? `${cfg.color}15` : 'rgba(255,255,255,0.02)',
-                  border:      `1px solid ${difficulty === key ? cfg.color + '55' : 'rgba(255,255,255,0.07)'}`,
-                  boxShadow:   difficulty === key ? `0 0 20px ${cfg.color}18` : 'none',
+                  background: difficulty === key ? `${cfg.color}0f` : 'var(--surface)',
+                  border:     `1px solid ${difficulty === key ? cfg.color + '55' : 'var(--line)'}`,
+                  boxShadow:  difficulty === key ? `0 4px 16px ${cfg.color}14` : '0 1px 4px rgba(0,0,0,0.04)',
                 }}>
                 <div className="flex items-center gap-3">
                   <span className="text-[28px]">{cfg.icon}</span>
                   <div className="flex-1">
-                    <div className="font-mono font-bold text-[16px] text-white mb-0.5">{cfg.label}</div>
-                    <div className="font-mono text-[11px] text-white/40">{cfg.desc}</div>
+                    <div className="font-mono font-bold text-[16px] mb-0.5" style={{ color: 'var(--ink)' }}>{cfg.label}</div>
+                    <div className="font-mono text-[11px]" style={{ color: 'var(--ink-2)' }}>{cfg.desc}</div>
                   </div>
                   <div className="w-5 h-5 rounded-full border-2 grid place-items-center shrink-0"
-                    style={{ borderColor: difficulty === key ? cfg.color : 'rgba(255,255,255,0.15)' }}>
+                    style={{ borderColor: difficulty === key ? cfg.color : 'var(--line-2)' }}>
                     {difficulty === key && (
                       <div className="w-2.5 h-2.5 rounded-full" style={{ background: cfg.color }} />
                     )}
@@ -536,7 +547,10 @@ export function ChallengeView() {
 
           {/* Duration picker */}
           <div className="mb-5">
-            <div className="font-mono text-[9px] tracking-[.16em] uppercase text-white/25 mb-2 text-center">Round duration</div>
+            <div className="font-mono text-[9px] tracking-[.16em] uppercase mb-2 text-center"
+              style={{ color: 'var(--ink-3)' }}>
+              Round duration
+            </div>
             <div className="grid grid-cols-4 gap-2">
               {[
                 { s: 15, label: '15s', bonus: '4×' },
@@ -547,34 +561,34 @@ export function ChallengeView() {
                 const active = roundDuration === s
                 return (
                   <button key={s} onClick={() => setRoundDuration(s)}
-                    className="flex flex-col items-center py-2.5 rounded-xl transition-all"
+                    className="flex flex-col items-center py-2.5 rounded-xl transition-all shadow-sm"
                     style={{
-                      background: active ? 'rgba(108,43,242,0.22)' : 'rgba(255,255,255,0.04)',
-                      border: `1px solid ${active ? 'rgba(108,43,242,0.5)' : 'rgba(255,255,255,0.08)'}`,
+                      background: active ? 'var(--sig-wash)' : 'var(--surface)',
+                      border: `1px solid ${active ? 'rgba(108,43,242,0.4)' : 'var(--line)'}`,
                     }}>
                     <span className="font-mono font-bold text-[13px]"
-                      style={{ color: active ? '#9A6BFF' : 'rgba(255,255,255,0.45)' }}>{label}</span>
+                      style={{ color: active ? 'var(--sig)' : 'var(--ink)' }}>{label}</span>
                     <span className="font-mono text-[9px] mt-0.5"
-                      style={{ color: active ? '#6C2BF2' : 'rgba(255,255,255,0.2)' }}>{bonus} pts</span>
+                      style={{ color: active ? 'var(--sig)' : 'var(--ink-3)' }}>{bonus} pts</span>
                   </button>
                 )
               })}
             </div>
-            <div className="font-mono text-[9px] text-white/20 mt-1.5 text-center">
+            <div className="font-mono text-[9px] mt-1.5 text-center" style={{ color: 'var(--ink-3)' }}>
               faster = more pts · {roundDuration}s × {getDurationMultiplier(roundDuration)} = {calcPoints('win', roundDuration)} pts/win
             </div>
           </div>
 
           <button onClick={handleStart}
             className="w-full py-4 rounded-xl font-mono font-bold text-[14px] uppercase tracking-[.08em] text-white transition-all active:scale-[.97]"
-            style={{ background: 'linear-gradient(135deg, #6C2BF2, #7c3af5)',
-              boxShadow: '0 0 32px rgba(108,43,242,0.55)' }}>
+            style={{ background: 'var(--sig)', boxShadow: '0 4px 20px rgba(108,43,242,0.4)' }}>
             {DIFFICULTY_CONFIG[difficulty].icon} Start {DIFFICULTY_CONFIG[difficulty].label} ({roundDuration}s) →
           </button>
 
           <div className="text-center mt-4">
             <Link href="/arena"
-              className="font-mono text-[11px] text-white/25 hover:text-white/50 transition-colors">
+              className="font-mono text-[11px] transition-colors hover:opacity-80"
+              style={{ color: 'var(--ink-3)' }}>
               ← Back to single round
             </Link>
           </div>
@@ -634,7 +648,7 @@ export function ChallengeView() {
 
   if (challengePhase === 'between' && lastRecord) {
     return (
-      <div className="min-h-screen" style={{ background: '#02040A' }}>
+      <div className="min-h-screen" style={{ background: 'var(--paper)' }}>
         <BetweenRoundCard
           record={lastRecord}
           humanScore={humanScore}
