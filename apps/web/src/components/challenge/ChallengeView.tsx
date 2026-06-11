@@ -138,6 +138,40 @@ function BetweenRoundCard({
   )
 }
 
+// ── Metric card (Contra-style: label + impact badge + big value) ─────────────
+
+function MetricCard({ label, impact, value, sub, color = 'white', icon }: {
+  label: string; impact: 'HIGH' | 'MEDIUM'
+  value: string; sub?: string; color?: string; icon?: string
+}) {
+  return (
+    <div className="rounded-xl p-4 flex flex-col justify-between min-h-[90px]"
+      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+      <div className="flex items-start justify-between mb-3">
+        <span className="font-mono text-[11px] text-white/45 leading-tight">{label}</span>
+        <span className="font-mono text-[8px] uppercase tracking-[.1em] px-1.5 py-0.5 rounded-full shrink-0 ml-1"
+          style={impact === 'HIGH'
+            ? { background: 'rgba(108,43,242,0.2)', color: '#9A6BFF' }
+            : { background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.35)' }}>
+          {impact === 'HIGH' ? 'HIGH' : 'MED'}
+        </span>
+      </div>
+      <div className="flex items-end justify-between">
+        <div>
+          <div className="font-display font-black leading-none" style={{ fontSize: 22, color }}>
+            {icon && <span className="mr-1 text-[15px]">{icon}</span>}{value}
+          </div>
+          {sub && <div className="font-mono text-[10px] text-white/30 mt-1">{sub}</div>}
+        </div>
+        {/* Chevron */}
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ opacity: 0.18 }}>
+          <path d="M5 2.5l4 4.5-4 4.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </div>
+    </div>
+  )
+}
+
 // ── Final challenge report ────────────────────────────────────────────────────
 
 function FinalReport({
@@ -171,83 +205,160 @@ function FinalReport({
 
   const accent = humanWon ? '#10b981' : tied ? '#fbbf24' : '#f43f5e'
 
-  const BASE_URL   = typeof window !== 'undefined' ? window.location.origin : 'https://klyro.xyz'
-  const shareText  = humanWon
+  // Ring progress = win rate (how many rounds human won)
+  const RING_R     = 42
+  const RING_CIRC  = 2 * Math.PI * RING_R
+  const ringFill   = humanScore / totalRounds
+  const winRatePct = Math.round((humanScore / totalRounds) * 100)
+
+  const BASE_URL  = typeof window !== 'undefined' ? window.location.origin : 'https://klyro.xyz'
+  const shareText = humanWon
     ? `I just beat Axiom-7 AI ${humanScore}-${agentScore} in ${DIFFICULTY_CONFIG[difficulty].label} (${roundDuration}s rounds) on @KlyroHQ! Earned ${totalPts} pts · Badge: ${matchBadge.icon} ${matchBadge.label}. #Klyro #Mantle #HumanVsAI`
     : tied
     ? `Tied ${humanScore}-${agentScore} with Axiom-7 AI on @KlyroHQ — dead heat in ${DIFFICULTY_CONFIG[difficulty].label} (${roundDuration}s). Rematch incoming. #Klyro #Mantle #HumanVsAI`
     : `Axiom-7 AI beat me ${agentScore}-${humanScore} in ${DIFFICULTY_CONFIG[difficulty].label} (${roundDuration}s) on @KlyroHQ. Rematch time. #Klyro #Mantle #HumanVsAI`
-  const shareUrl   = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText + '\n' + BASE_URL + '/challenge')}`
+  const shareUrl  = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText + '\n' + BASE_URL + '/challenge')}`
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
-      style={{ background: 'rgba(2,4,10,0.98)', backdropFilter: 'blur(10px)' }}>
-      <div className="w-full max-w-[360px] rounded-2xl overflow-hidden my-4"
-        style={{ background: 'rgba(255,255,255,0.025)', border: `1px solid ${accent}44`,
-          boxShadow: `0 0 80px ${accent}22, 0 24px 60px rgba(0,0,0,0.8)` }}>
+    <div className="min-h-screen overflow-y-auto" style={{ background: '#050508' }}>
+      <div className="max-w-[540px] mx-auto px-5 pt-8 pb-16">
 
-        {/* Header */}
-        <div className="px-5 pt-6 pb-4 text-center border-b" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
-          <div className="font-mono text-[10px] text-white/30 uppercase tracking-[.16em] mb-2">
-            {DIFFICULTY_CONFIG[difficulty].label} · Final Report
-          </div>
-          <div className="font-display font-black text-[42px] leading-none uppercase"
-            style={{ color: accent, textShadow: `0 0 40px ${accent}55` }}>
-            {humanWon ? 'Victory!' : tied ? 'Draw!' : 'Defeated'}
-          </div>
-          <div className="font-mono text-[13px] text-white/40 mt-2">
-            {humanWon ? 'You out-predicted the machine.' : tied ? 'An even match.' : 'The algorithm prevailed.'}
+        {/* Breadcrumb */}
+        <div className="font-mono text-[10px] uppercase tracking-[.18em] text-white/25 mb-7">
+          {DIFFICULTY_CONFIG[difficulty].label} &middot; Final Report
+        </div>
+
+        {/* ── Hero card (Contra-style) ─────────────────────────────────── */}
+        <div className="rounded-2xl p-6 mb-5"
+          style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${accent}30` }}>
+          <div className="flex items-start gap-4">
+
+            {/* Left: big number + context */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-end gap-2 mb-1">
+                <span className="font-display font-black leading-none"
+                  style={{ fontSize: 64, color: accent, lineHeight: 1 }}>
+                  {totalPts}
+                </span>
+                <span className="font-mono text-[14px] text-white/30 mb-2">pts</span>
+              </div>
+              <div className="font-display font-bold text-[17px] text-white leading-tight mb-1">
+                {humanWon
+                  ? `You beat Axiom-7 ${humanScore}–${agentScore}`
+                  : tied
+                  ? `Dead heat ${humanScore}–${agentScore}`
+                  : `Axiom-7 won ${agentScore}–${humanScore}`}
+              </div>
+              <div className="font-mono text-[12px] text-white/35 leading-relaxed mb-3">
+                {humanWon ? 'You out-predicted the machine.' : tied ? 'An even match.' : 'The algorithm prevailed.'}
+              </div>
+              <div className="font-mono text-[11px]" style={{ color: accent }}>
+                {matchBadge.icon} {matchBadge.label} &middot; {DIFFICULTY_CONFIG[difficulty].label}
+              </div>
+            </div>
+
+            {/* Right: circular badge ring */}
+            <div className="relative shrink-0" style={{ width: 96, height: 96 }}>
+              <svg viewBox="0 0 100 100" width={96} height={96}>
+                {/* Track */}
+                <circle cx="50" cy="50" r={RING_R} fill="none"
+                  stroke="rgba(255,255,255,0.07)" strokeWidth="6" />
+                {/* Fill */}
+                <circle cx="50" cy="50" r={RING_R} fill="none"
+                  stroke={accent} strokeWidth="6"
+                  strokeLinecap="round"
+                  strokeDasharray={RING_CIRC}
+                  strokeDashoffset={RING_CIRC * (1 - ringFill)}
+                  style={{ transform: 'rotate(-90deg)', transformOrigin: '50px 50px',
+                    filter: `drop-shadow(0 0 4px ${accent}88)` }} />
+              </svg>
+              {/* Badge icon centred in ring */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5">
+                <span style={{ fontSize: 26, lineHeight: 1 }}>{matchBadge.icon}</span>
+                <span className="font-mono text-[9px]" style={{ color: accent }}>{winRatePct}%</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Score */}
-        <div className="px-5 py-5 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-          <div className="flex items-center justify-center gap-8 mb-4">
-            <div className="text-center">
-              <div className="font-display font-black text-[56px] leading-none text-[#10b981]">{humanScore}</div>
-              <div className="font-mono text-[11px] text-white/30 mt-1 uppercase tracking-[.1em]">You</div>
-            </div>
-            <div className="flex flex-col items-center gap-1">
-              <div className="font-mono text-[22px] text-white/15 font-bold">vs</div>
-              <div className="font-mono text-[9px] text-white/20 uppercase tracking-[.1em]">{totalRounds} rounds</div>
-            </div>
-            <div className="text-center">
-              <div className="font-display font-black text-[56px] leading-none text-[#f43f5e]">{agentScore}</div>
-              <div className="font-mono text-[11px] text-white/30 mt-1 uppercase tracking-[.1em]">Axiom-7</div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="font-mono text-[11px] text-white/25">Total earned:</div>
-            <div className="font-mono font-bold text-[16px]" style={{ color: '#9A6BFF' }}>{totalPts} pts</div>
-            <div className="font-mono text-[10px] text-white/20">({roundDuration}s rounds)</div>
-          </div>
-
-          <div className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl mx-4"
-            style={{ background: `${accent}12`, border: `1px solid ${accent}25` }}>
-            <span className="text-[22px]">{matchBadge.icon}</span>
-            <div>
-              <div className="font-mono font-bold text-[14px]" style={{ color: accent }}>{matchBadge.label}</div>
-              <div className="font-mono text-[10px] text-white/30">Match badge earned</div>
-            </div>
+        {/* ── Section: Match performance grid ─────────────────────────── */}
+        <div className="mb-1">
+          <div className="font-display font-bold text-[18px] text-white mb-0.5">Match performance</div>
+          <div className="font-mono text-[12px] text-white/35 mb-5">
+            Understand your edge against Axiom-7.
           </div>
         </div>
 
-        {/* Round breakdown */}
-        <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-          <div className="font-mono text-[9px] text-white/25 uppercase tracking-[.14em] mb-3">Round breakdown</div>
-          <div className="space-y-2">
-            {records.map(r => {
+        <div className="grid grid-cols-2 gap-3 mb-5">
+          <MetricCard
+            label="Match Result"   impact="HIGH"
+            value={`${humanScore} – ${agentScore}`}
+            sub={humanWon ? 'Victory' : tied ? 'Draw' : 'Defeated'}
+            color={accent}
+          />
+          <MetricCard
+            label="Points Earned"  impact="HIGH"
+            value={`${totalPts}`}
+            sub="pts this match"
+            color="#9A6BFF"
+            icon="★"
+          />
+          <MetricCard
+            label="Win Rate"       impact="HIGH"
+            value={`${winRatePct}%`}
+            sub={`${humanScore} / ${totalRounds} rounds`}
+            color={winRatePct >= 50 ? '#10b981' : '#f43f5e'}
+          />
+          <MetricCard
+            label="Round Duration" impact="HIGH"
+            value={`${roundDuration}s`}
+            sub={`${getDurationMultiplier(roundDuration)}× pts multiplier`}
+            color="#fbbf24"
+            icon="⚡"
+          />
+          <MetricCard
+            label="Strategy"       impact="MEDIUM"
+            value={analysis.strategyType}
+            sub={`${upCalls}↑ / ${downCalls}↓ calls`}
+            color="white"
+          />
+          <MetricCard
+            label="Difficulty"     impact="MEDIUM"
+            value={DIFFICULTY_CONFIG[difficulty].label}
+            sub={`${totalRounds} rounds`}
+            color="white"
+            icon={DIFFICULTY_CONFIG[difficulty].icon}
+          />
+        </div>
+
+        {/* ── Round breakdown ──────────────────────────────────────────── */}
+        <div className="mb-5">
+          <div className="font-display font-bold text-[18px] text-white mb-0.5">Round breakdown</div>
+          <div className="font-mono text-[12px] text-white/35 mb-4">
+            Every call you made against the AI.
+          </div>
+          <div className="rounded-2xl overflow-hidden"
+            style={{ border: '1px solid rgba(255,255,255,0.07)' }}>
+            {records.map((r, i) => {
               const rc = r.verdict === 'win' ? '#10b981' : r.verdict === 'lose' ? '#f43f5e' : '#fbbf24'
               return (
-                <div key={r.roundNum} className="flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-full grid place-items-center font-mono text-[10px] font-bold shrink-0"
-                    style={{ background: `${rc}22`, color: rc }}>{r.roundNum}</div>
-                  <div className="flex-1 font-mono text-[11px] text-white/50">
-                    You {r.humanCall === 'up' ? '▲' : '▼'} vs AI {r.agentCall === 'up' ? '▲' : '▼'}
-                    {' · '}ETH {r.outcome === 'up' ? '▲' : '▼'} {r.delta}
+                <div key={r.roundNum}
+                  className="flex items-center gap-3 px-4 py-3.5"
+                  style={{ borderBottom: i < records.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
+                  <div className="w-7 h-7 rounded-full grid place-items-center font-mono text-[11px] font-bold shrink-0"
+                    style={{ background: `${rc}20`, color: rc }}>
+                    {r.roundNum}
                   </div>
-                  <div className="font-mono text-[11px] font-bold shrink-0" style={{ color: rc }}>
+                  <div className="flex-1 font-mono text-[11px] text-white/45 leading-relaxed">
+                    You <span style={{ color: r.humanCall === 'up' ? '#10b981' : '#f43f5e' }}>
+                      {r.humanCall === 'up' ? '▲' : '▼'}
+                    </span>{' vs '}AI <span style={{ color: r.agentCall === 'up' ? '#10b981' : '#f43f5e' }}>
+                      {r.agentCall === 'up' ? '▲' : '▼'}
+                    </span>
+                    <span className="text-white/25"> · ETH {r.outcome === 'up' ? '▲' : '▼'} {r.delta}</span>
+                  </div>
+                  <div className="w-7 h-7 rounded-full grid place-items-center font-mono text-[10px] font-bold shrink-0"
+                    style={{ background: `${rc}15`, color: rc }}>
                     {r.verdict === 'win' ? 'W' : r.verdict === 'lose' ? 'L' : 'D'}
                   </div>
                 </div>
@@ -256,39 +367,30 @@ function FinalReport({
           </div>
         </div>
 
-        {/* Strategy */}
-        <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-          <div className="font-mono text-[9px] text-white/25 uppercase tracking-[.14em] mb-2">Your strategy profile</div>
-          <div className="flex items-center gap-3">
-            <div>
-              <div className="font-mono font-bold text-[13px] text-white">{analysis.strategyType}</div>
-              <div className="font-mono text-[10px] text-white/30">{upCalls}↑ / {downCalls}↓ calls this session</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="px-5 py-4 space-y-2.5">
+        {/* ── Actions ──────────────────────────────────────────────────── */}
+        <div className="space-y-2.5">
           <a href={shareUrl} target="_blank" rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-mono text-[12px] font-bold uppercase tracking-[.07em] text-white transition-opacity hover:opacity-80"
-            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}>
+            className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-mono text-[12px] font-bold uppercase tracking-[.07em] text-white transition-opacity hover:opacity-80"
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.11)' }}>
             <svg width="14" height="14" viewBox="0 0 1200 1227" fill="currentColor">
               <path d="M714.163 519.284L1160.89 0H1055.03L667.137 450.887L357.328 0H0L468.492 681.821L0 1226.37H105.866L515.491 750.218L842.672 1226.37H1200L714.137 519.284H714.163ZM569.165 687.828L521.697 619.934L144.011 79.6944H306.615L611.412 515.685L658.88 583.579L1055.08 1150.3H892.476L569.165 687.854V687.828Z"/>
             </svg>
-            Share Result on X
+            Share result on X
           </a>
 
           <button onClick={onRematch}
-            className="w-full py-3 rounded-xl font-mono font-bold text-[12px] uppercase tracking-[.08em] text-white transition-all active:scale-[.97]"
-            style={{ background: 'linear-gradient(135deg,#6C2BF2,#7c3af5)', boxShadow: '0 0 24px rgba(108,43,242,0.4)' }}>
+            className="w-full py-3.5 rounded-xl font-mono font-bold text-[13px] uppercase tracking-[.08em] text-white transition-all active:scale-[.97]"
+            style={{ background: 'linear-gradient(135deg,#6C2BF2,#7c3af5)',
+              boxShadow: '0 0 28px rgba(108,43,242,0.4)' }}>
             {humanWon ? '🏆  Claim Harder Difficulty' : '🔄  Rematch'}
           </button>
 
           <button onClick={onHome}
-            className="w-full py-2 rounded-xl font-mono text-[11px] text-white/30 hover:text-white/60 transition-colors">
+            className="w-full py-2 rounded-xl font-mono text-[11px] text-white/30 hover:text-white/55 transition-colors">
             ← Back to Arena
           </button>
         </div>
+
       </div>
     </div>
   )
@@ -549,18 +651,16 @@ export function ChallengeView() {
 
   if (challengePhase === 'final') {
     return (
-      <div className="min-h-screen" style={{ background: '#02040A' }}>
-        <FinalReport
-          records={records}
-          humanScore={humanScore}
-          agentScore={agentScore}
-          totalRounds={totalRounds}
-          difficulty={difficulty}
-          roundDuration={roundDuration}
-          onRematch={handleRematch}
-          onHome={() => { resetMock(); window.location.href = '/arena' }}
-        />
-      </div>
+      <FinalReport
+        records={records}
+        humanScore={humanScore}
+        agentScore={agentScore}
+        totalRounds={totalRounds}
+        difficulty={difficulty}
+        roundDuration={roundDuration}
+        onRematch={handleRematch}
+        onHome={() => { resetMock(); window.location.href = '/arena' }}
+      />
     )
   }
 
