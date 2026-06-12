@@ -302,8 +302,9 @@ export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } =
   }, [chainRound?.isOpen, waitingOpen])
 
   // Mock round resolved → trigger full ResultModal (same as Gauntlet final report)
+  // gauntletMode: skip — ChallengeView owns the result flow there
   useEffect(() => {
-    if (mockPhase !== 'resolved' || !mockLastResult) return
+    if (mockPhase !== 'resolved' || !mockLastResult || gauntletMode) return
     const fr: FrozenResult = {
       roundId:         BigInt(mockLastResult.roundId),
       outcome:         mockLastResult.outcome === 'up',
@@ -839,8 +840,8 @@ export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } =
           </div>
         )}
 
-        {/* ── RESULT ── (mini fallback — hidden once full ResultModal is shown) */}
-        {(ps === 'result' || (ps === 'mResult' && !resultShown)) && (
+        {/* ── RESULT ── (mini fallback; in gauntlet mode ChallengeView owns result UI) */}
+        {!gauntletMode && (ps === 'result' || (ps === 'mResult' && !resultShown)) && (
           <div className="p-5">
             <div className="font-display font-black text-[26px] uppercase mb-1.5"
               style={{ color: resHumanWon ? '#10b981' : '#f43f5e',
@@ -893,8 +894,8 @@ export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } =
         />
       )}
 
-      {/* ── Full-screen result modal ──────────────────────────────────── */}
-      {resultShown && resOutcome !== null && displayHumanCall !== null && frozenResult && (
+      {/* ── Full-screen result modal (Arena only — gauntlet uses ChallengeView) ── */}
+      {!gauntletMode && resultShown && resOutcome !== null && displayHumanCall !== null && frozenResult && (
         <ResultModal
           verdict={resVerdict}
           humanCall={displayHumanCall}

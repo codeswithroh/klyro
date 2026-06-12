@@ -16,9 +16,11 @@ export const AGENTS: AgentPersonality[] = [
     id: 'axiom-7',
     name: 'Axiom-7',
     initials: 'AX',
-    strategy: 'Short-term momentum via 3-tick EMA crossover',
-    conviction: 0.72,
-    style: 'momentum',
+    // Counter-trend: fades the recent 3-tick EMA signal expecting mean reversion.
+    // This creates genuine head-to-head tension with momentum-following humans.
+    strategy: 'Counter-momentum fade via 3-tick EMA reversion',
+    conviction: 0.75,
+    style: 'contrarian',
   },
   {
     id: 'momentum-max',

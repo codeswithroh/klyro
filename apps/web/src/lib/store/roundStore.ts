@@ -5,7 +5,7 @@ import {
   formatPrice,
   formatDelta,
 } from '../mock/priceSimulator'
-import { agentPredict, assignAgent, type AgentPersonality } from '../mock/agentPredictor'
+import { agentPredict, AGENTS, assignAgent, type AgentPersonality } from '../mock/agentPredictor'
 
 export type RoundPhase = 'idle' | 'open' | 'resolved'
 export type Call = 'up' | 'down'
@@ -201,8 +201,17 @@ export const useRoundStore = create<RoundState>((set, get) => ({
       const { humanCall, agentCall, humanPoints, humanWins, humanLosses, humanStreak, leaderboard } = get()
 
       const outcome: Call = newPrice >= startPrice ? 'up' : 'down'
+
+      // If the agent hasn't made a call yet (race condition on short rounds or
+      // very late human calls), force a real algorithmic prediction now rather
+      // than using the broken default `opposite-of-outcome` which causes draws
+      // whenever the human is also wrong.
+      const finalAgentCall: Call = agentCall !== null
+        ? agentCall
+        : agentPredict(get().agent ?? AGENTS[0], globalPriceSimulator.getHistory(asset))
+
       const humanWon = humanCall !== null && humanCall === outcome
-      const agentWon = agentCall !== null && agentCall === outcome
+      const agentWon = finalAgentCall === outcome
 
       let newStreak = humanWon ? humanStreak + 1 : 0
       let earned = 0
@@ -226,10 +235,10 @@ export const useRoundStore = create<RoundState>((set, get) => ({
         startPrice,
         closePrice: newPrice,
         humanCall: humanCall ?? outcome, // default to outcome if no call (no points)
-        agentCall: agentCall ?? (outcome === 'up' ? 'down' : 'up'),
+        agentCall: finalAgentCall,        // always a real prediction, never broken default
         outcome,
         humanWon: humanCall !== null && humanWon,
-        agentWon: agentCall !== null && agentWon,
+        agentWon: agentWon,
         deltaText,
         points: earned,
         newStreak,
