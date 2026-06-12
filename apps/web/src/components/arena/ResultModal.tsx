@@ -394,6 +394,41 @@ export interface ResultModalProps {
   onPlayAgain: () => void
 }
 
+// ── Metric card (mirrors Gauntlet's MetricCard) ──────────────────────────────
+
+function MetricCard({ label, impact, value, sub, color, icon }: {
+  label: string; impact: 'HIGH' | 'MEDIUM'
+  value: string; sub?: string; color?: string; icon?: string
+}) {
+  const valColor = color ?? 'var(--ink)'
+  return (
+    <div className="rounded-xl p-4 flex flex-col justify-between min-h-[90px]"
+      style={{ background: 'var(--surface)', border: '1px solid var(--line)' }}>
+      <div className="flex items-start justify-between mb-3">
+        <span className="font-mono text-[11px] leading-tight" style={{ color: 'var(--ink-2)' }}>{label}</span>
+        <span className="font-mono text-[8px] uppercase tracking-[.1em] px-1.5 py-0.5 rounded-full shrink-0 ml-1"
+          style={impact === 'HIGH'
+            ? { background: 'var(--sig-wash)', color: 'var(--sig)' }
+            : { background: 'var(--paper-2)', color: 'var(--ink-3)' }}>
+          {impact === 'HIGH' ? 'HIGH' : 'MED'}
+        </span>
+      </div>
+      <div className="flex items-end justify-between">
+        <div>
+          <div className="font-display font-black leading-none" style={{ fontSize: 22, color: valColor }}>
+            {icon && <span className="mr-1 text-[15px]">{icon}</span>}{value}
+          </div>
+          {sub && <div className="font-mono text-[10px] mt-1" style={{ color: 'var(--ink-3)' }}>{sub}</div>}
+        </div>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M5 2.5l4 4.5-4 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+            style={{ color: 'var(--ink-3)' }}/>
+        </svg>
+      </div>
+    </div>
+  )
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function ResultModal({
@@ -402,275 +437,240 @@ export function ResultModal({
   duration = 60,
   onPlayAgain,
 }: ResultModalProps) {
-  const [mounted,setMounted]=useState(false)
-  const [downloading,setDownloading]=useState(false)
-  const canvasRef=useRef<HTMLCanvasElement>(null)
-  const account=useActiveAccount()
+  const [mounted, setMounted] = useState(false)
+  const [downloading, setDownloading] = useState(false)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const account = useActiveAccount()
 
-  const msgPool=verdict==='win'?WIN_MSGS:verdict==='lose'?LOSE_MSGS:DRAW_MSGS
-  const msgRef=useRef(msgPool[Math.floor(Math.random()*msgPool.length)])
+  const msgPool = verdict === 'win' ? WIN_MSGS : verdict === 'lose' ? LOSE_MSGS : DRAW_MSGS
+  const msgRef = useRef(msgPool[Math.floor(Math.random() * msgPool.length)])
 
-  const analysis=classifyBattle(humanCall,agentCall,outcome,verdict)
-  const pts=calcPoints(verdict,duration)
-  const agentPts=calcPoints(verdict==='win'?'lose':verdict==='lose'?'win':'draw',duration)
+  const analysis = classifyBattle(humanCall, agentCall, outcome, verdict)
+  const pts = calcPoints(verdict, duration)
+  const agentPts = calcPoints(verdict === 'win' ? 'lose' : verdict === 'lose' ? 'win' : 'draw', duration)
 
-  const {mintState,alreadyMinted,mintedTokenId,mintError,mint}=useMintBattle(
-    account?.address,roundId,humanCall,outcome,verdict,
+  const { mintState, alreadyMinted, mintedTokenId, mintError, mint } = useMintBattle(
+    account?.address, roundId, humanCall, outcome, verdict,
   )
 
-  useEffect(()=>{const t=setTimeout(()=>setMounted(true),40);return()=>clearTimeout(t)},[])
-  useConfetti(verdict==='win'&&mounted,canvasRef as React.RefObject<HTMLCanvasElement>)
-  useRain(verdict==='lose'&&mounted,canvasRef as React.RefObject<HTMLCanvasElement>)
+  useEffect(() => { const t = setTimeout(() => setMounted(true), 40); return () => clearTimeout(t) }, [])
+  useConfetti(verdict === 'win' && mounted, canvasRef as React.RefObject<HTMLCanvasElement>)
+  useRain(verdict === 'lose' && mounted, canvasRef as React.RefObject<HTMLCanvasElement>)
 
-  const pct=startPrice>0?((closePrice-startPrice)/startPrice)*100:0
-  const deltaText=`${pct>=0?'+':''}${pct.toFixed(3)}%`
+  const pct = startPrice > 0 ? ((closePrice - startPrice) / startPrice) * 100 : 0
+  const deltaText = `${pct >= 0 ? '+' : ''}${pct.toFixed(3)}%`
 
-  const accent    = verdict==='win'?'#10b981':verdict==='lose'?'#f43f5e':'#fbbf24'
-  const glowColor = verdict==='win'?'rgba(16,185,129,0.2)':verdict==='lose'?'rgba(244,63,94,0.2)':'rgba(251,191,36,0.18)'
-  const bgColor   = verdict==='win'?'rgba(0,12,6,0.97)':verdict==='lose'?'rgba(12,0,4,0.97)':'rgba(8,6,0,0.97)'
-  const cardBg    = verdict==='win'?'linear-gradient(160deg,#010f06,#021a0c)':verdict==='lose'?'linear-gradient(160deg,#0f0105,#1c0207)':'linear-gradient(160deg,#0d0900,#1a1000)'
-  const borderCol = verdict==='win'?'rgba(16,185,129,0.4)':verdict==='lose'?'rgba(244,63,94,0.4)':'rgba(251,191,36,0.38)'
+  // Accent follows the verdict — green win, red lose, amber draw
+  const accent = verdict === 'win' ? '#07BE6A' : verdict === 'lose' ? '#F12E49' : '#d97706'
 
-  // Share to X
-  const BASE_URL=typeof window!=='undefined'?window.location.origin:'https://klyro.xyz'
-  const shareText=verdict==='win'
-    ?`I just out-predicted Axiom-7 AI on @KlyroHQ! ${humanCall==='up'?'▲ HIGHER':'▼ LOWER'} — ETH moved ${deltaText} in ${duration}s. Earned ${pts} pts + ${analysis.badgeIcon} ${analysis.badge} badge. #Klyro #Mantle #HumanVsAI`
-    :verdict==='lose'
-    ?`Axiom-7 AI got me on @KlyroHQ — called ${humanCall==='up'?'▲ HIGHER':'▼ LOWER'} but ETH went ${outcome==='up'?'▲':'▼'} ${deltaText}. Rematch time. #Klyro #Mantle`
-    :`Drew with Axiom-7 AI on @KlyroHQ — ${analysis.strategyType} in ${duration}s. #Klyro #Mantle`
-  const tweetUrl=`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText+'\n'+BASE_URL+'/round/'+roundId)}`
+  const EXPLORER = 'https://explorer.sepolia.mantle.xyz'
+  const BASE_URL = typeof window !== 'undefined' ? window.location.origin : 'https://klyro.xyz'
+  const shareText = verdict === 'win'
+    ? `I just out-predicted Axiom-7 AI on @KlyroHQ! ${humanCall === 'up' ? '▲ HIGHER' : '▼ LOWER'} — ETH moved ${deltaText} in ${duration}s. Earned ${pts} pts + ${analysis.badgeIcon} ${analysis.badge} badge. #Klyro #Mantle #HumanVsAI`
+    : verdict === 'lose'
+    ? `Axiom-7 AI got me on @KlyroHQ — called ${humanCall === 'up' ? '▲ HIGHER' : '▼ LOWER'} but ETH went ${outcome === 'up' ? '▲' : '▼'} ${deltaText}. Rematch time. #Klyro #Mantle`
+    : `Drew with Axiom-7 AI on @KlyroHQ — ${analysis.strategyType} in ${duration}s. #Klyro #Mantle`
+  const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText + '\n' + BASE_URL + '/round/' + roundId)}`
 
-  const ctaLabel=verdict==='win'?'🔁  Play Again':verdict==='lose'?'🔄  Rematch':'⚖️  Break the Tie'
-  const ctaBg=verdict==='win'?'linear-gradient(135deg,#059669,#10b981)':verdict==='lose'?'linear-gradient(135deg,#6C2BF2,#7c3af5)':'linear-gradient(135deg,#b45309,#d97706)'
-  const EXPLORER='https://explorer.sepolia.mantle.xyz'
+  const ctaLabel = verdict === 'win' ? '🔁  Play Again' : verdict === 'lose' ? '🔄  Rematch' : '⚖️  Break the Tie'
 
-  function handleDownload(){
+  function handleDownload() {
     setDownloading(true)
-    downloadBattleCard({verdict,humanCall,agentCall,outcome,startPrice,closePrice,roundId,duration,analysis,pts})
-    setTimeout(()=>setDownloading(false),800)
+    downloadBattleCard({ verdict, humanCall, agentCall, outcome, startPrice, closePrice, roundId, duration, analysis, pts })
+    setTimeout(() => setDownloading(false), 800)
   }
 
-  const drawReason=agentCall===null?'Bot didn\'t predict this round'
-    :humanCall===agentCall?`Both called ${humanCall==='up'?'▲ Higher':'▼ Lower'} — no edge`:''
-
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-      style={{background:bgColor,backdropFilter:'blur(12px)',
-        opacity:mounted?1:0,transition:'opacity 0.4s ease',overflowY:'auto'}}>
-      <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none" style={{zIndex:0}}/>
+    <div className="fixed inset-0 z-[100] overflow-y-auto"
+      style={{
+        background: 'var(--paper)',
+        opacity: mounted ? 1 : 0,
+        transition: 'opacity 0.4s ease',
+      }}>
 
-      <div className="relative z-10 w-full max-w-[380px] my-4"
+      {/* Confetti / rain canvas — sits above paper bg, below content */}
+      <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }} />
+
+      <div className="relative z-10 max-w-[540px] mx-auto px-5 pt-8 pb-16"
         style={{
-          background:cardBg,
-          border:`1px solid ${borderCol}`,
-          borderRadius:24,
-          boxShadow:`0 0 80px ${glowColor},0 0 200px ${glowColor},0 24px 60px rgba(0,0,0,0.85)`,
-          transform:mounted?'translateY(0) scale(1)':'translateY(32px) scale(0.93)',
-          transition:'transform 0.45s cubic-bezier(0.34,1.56,0.64,1)',
-          overflow:'hidden',
+          transform: mounted ? 'translateY(0)' : 'translateY(32px)',
+          transition: 'transform 0.45s cubic-bezier(0.34,1.56,0.64,1)',
         }}>
 
-        {/* ── Top bar ── */}
-        <div className="flex items-center justify-between px-5 pt-4 pb-2">
-          <span className="font-mono text-[10px] tracking-[.18em] uppercase text-white/25">Klyro Battle</span>
-          <span className="font-mono text-[10px] text-white/20">Round #{Number(roundId)}</span>
+        {/* Breadcrumb */}
+        <div className="font-mono text-[10px] uppercase tracking-[.18em] mb-7"
+          style={{ color: 'var(--ink-3)' }}>
+          Arena Battle · Round #{Number(roundId)}
         </div>
 
-        {/* ── Verdict hero ── */}
-        <div className="px-5 pb-4 text-center">
-          <div className="font-display font-black leading-none uppercase"
-            style={{
-              fontSize:54,
-              color:accent,
-              textShadow:`0 0 40px ${accent},0 0 80px ${glowColor}`,
-              animation:verdict==='win'?'rPulseG 1.8s ease-in-out infinite':verdict==='lose'?'rShake .5s cubic-bezier(.36,.07,.19,.97) .5s both':'rPulseY 1.8s ease-in-out infinite',
-            }}>
-            {verdict==='win'?'YOU WON':verdict==='lose'?'YOU LOST':"DRAW"}
-          </div>
-          <p className="font-mono text-[11px] text-white/35 italic mt-1.5 leading-snug">{msgRef.current}</p>
-          {verdict==='draw'&&drawReason&&(
-            <p className="font-mono text-[10px] text-[#fbbf24]/45 mt-1">{drawReason}</p>
-          )}
-        </div>
+        {/* ── Hero card ── */}
+        <div className="rounded-2xl p-6 mb-5 shadow-sm"
+          style={{ background: 'var(--surface)', border: '1px solid var(--line)' }}>
+          <div className="flex items-start gap-4">
 
-        {/* ── Strategy + Badge ── */}
-        <div className="mx-5 mb-4 rounded-2xl p-4 flex items-center gap-4"
-          style={{background:`${accent}10`,border:`1px solid ${accent}25`}}>
-          <div className="text-[42px] leading-none">{analysis.badgeIcon}</div>
-          <div className="flex-1 min-w-0">
-            <div className="font-mono font-bold text-[14px] truncate" style={{color:accent}}>{analysis.strategyType}</div>
-            <div className="font-mono text-[10px] text-white/35 leading-snug mt-0.5 truncate">{analysis.strategyDesc}</div>
-            <div className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full"
-              style={{background:`${accent}20`,border:`1px solid ${accent}35`}}>
-              <span className="font-mono text-[9px] font-bold tracking-[.12em] uppercase" style={{color:accent}}>{analysis.badge}</span>
-            </div>
-          </div>
-          {/* Speed badge */}
-          {duration<60&&(
-            <div className="shrink-0 text-center">
-              <div className="font-mono font-black text-[18px]" style={{color:accent}}>{getDurationMultiplier(duration)}×</div>
-              <div className="font-mono text-[8px] text-white/30 uppercase tracking-[.08em]">speed</div>
-            </div>
-          )}
-        </div>
-
-        {/* ── Score comparison ── */}
-        <div className="mx-5 mb-4 rounded-2xl overflow-hidden"
-          style={{background:'rgba(255,255,255,0.035)',border:'1px solid rgba(255,255,255,0.07)'}}>
-
-          {/* Header */}
-          <div className="grid grid-cols-[1fr_auto_1fr] px-4 pt-3 pb-2">
-            <div className="text-center">
-              <div className="font-mono text-[9px] tracking-[.14em] uppercase text-white/30 mb-1">You</div>
-              <div className="font-display font-black text-[17px]"
-                style={{color:humanCall==='up'?'#10b981':'#f43f5e'}}>
-                {humanCall==='up'?'▲':'▼'} {humanCall==='up'?'Higher':'Lower'}
+            {/* Left: pts + headline */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-end gap-2 mb-1">
+                <span className="font-display font-black leading-none"
+                  style={{ fontSize: 64, color: accent, lineHeight: 1 }}>
+                  {pts}
+                </span>
+                <span className="font-mono text-[14px] mb-2" style={{ color: 'var(--ink-3)' }}>pts</span>
+              </div>
+              <div className="font-display font-bold text-[17px] leading-tight mb-1"
+                style={{ color: 'var(--ink)' }}>
+                {verdict === 'win' ? 'You beat Axiom-7' : verdict === 'lose' ? 'Axiom-7 won this round' : "It's a draw"}
+              </div>
+              <div className="font-mono text-[12px] leading-relaxed mb-3"
+                style={{ color: 'var(--ink-2)' }}>
+                {msgRef.current}
+              </div>
+              <div className="font-mono text-[11px]" style={{ color: accent }}>
+                {analysis.badgeIcon} {analysis.badge} · {duration}s round
               </div>
             </div>
-            <div className="flex items-center px-3">
-              <span className="font-mono text-[11px] text-white/20 font-bold">VS</span>
-            </div>
-            <div className="text-center">
-              <div className="font-mono text-[9px] tracking-[.14em] uppercase text-white/30 mb-1">Axiom-7</div>
-              {agentCall
-                ?<div className="font-display font-black text-[17px]"
-                    style={{color:agentCall==='up'?'#10b981':'#f43f5e'}}>
-                    {agentCall==='up'?'▲':'▼'} {agentCall==='up'?'Higher':'Lower'}
-                  </div>
-                :<div className="font-mono text-[12px] text-white/20 italic">No call</div>
-              }
-            </div>
-          </div>
 
-          {/* Pts bar */}
-          <div className="grid grid-cols-[1fr_auto_1fr] px-4 py-3 border-t"
-            style={{borderColor:'rgba(255,255,255,0.06)'}}>
-            <div className="text-center">
-              <div className="font-display font-black text-[32px] leading-none"
-                style={{color:pts>0?'#10b981':'rgba(255,255,255,0.25)'}}>{pts}</div>
-              <div className="font-mono text-[9px] text-white/25 mt-0.5 uppercase tracking-[.1em]">pts</div>
-            </div>
-            <div className="flex items-center px-2">
-              <div className="w-px h-10 bg-white/10"/>
-            </div>
-            <div className="text-center">
-              <div className="font-display font-black text-[32px] leading-none"
-                style={{color:agentPts>0?'#f43f5e':'rgba(255,255,255,0.25)'}}>{agentPts}</div>
-              <div className="font-mono text-[9px] text-white/25 mt-0.5 uppercase tracking-[.1em]">pts</div>
-            </div>
-          </div>
-
-          {/* Price row */}
-          <div className="flex items-center justify-between px-4 py-3 border-t"
-            style={{borderColor:'rgba(255,255,255,0.06)',background:'rgba(255,255,255,0.02)'}}>
-            <div className="text-center">
-              <div className="font-mono text-[9px] text-white/25 mb-0.5">OPEN</div>
-              <div className="font-mono text-[12px] text-white font-semibold tabular-nums">
-                ${startPrice.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
+            {/* Right: verdict badge */}
+            <div className="shrink-0 flex flex-col items-center gap-1.5">
+              <div className="w-16 h-16 rounded-2xl grid place-items-center text-[28px]"
+                style={{ background: `${accent}15`, border: `1px solid ${accent}30` }}>
+                {verdict === 'win' ? '🏆' : verdict === 'lose' ? '💀' : '🤝'}
               </div>
-            </div>
-            <div className="text-center">
-              <div className="font-mono font-bold text-[15px]" style={{color:pct>=0?'#10b981':'#f43f5e'}}>{deltaText}</div>
-              <div className="font-mono text-[9px] text-white/20">{duration}s</div>
-            </div>
-            <div className="text-center">
-              <div className="font-mono text-[9px] text-white/25 mb-0.5">CLOSE</div>
-              <div className="font-mono text-[12px] text-white font-semibold tabular-nums">
-                ${closePrice.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
+              <div className="font-mono text-[9px] font-semibold uppercase tracking-[.1em]"
+                style={{ color: accent }}>
+                {verdict === 'win' ? 'Victory' : verdict === 'lose' ? 'Defeat' : 'Draw'}
               </div>
             </div>
           </div>
         </div>
 
-        {/* ── Action row ── */}
-        <div className="px-5 pb-2 space-y-2">
+        {/* ── Section header ── */}
+        <div className="mb-1">
+          <div className="font-display font-bold text-[18px] mb-0.5" style={{ color: 'var(--ink)' }}>
+            Battle analysis
+          </div>
+          <div className="font-mono text-[12px] mb-5" style={{ color: 'var(--ink-2)' }}>
+            How your call stacked up against Axiom-7.
+          </div>
+        </div>
 
-          {/* Download + Mint + Share */}
-          <div className="grid grid-cols-3 gap-2">
+        {/* ── Metrics grid ── */}
+        <div className="grid grid-cols-2 gap-3 mb-5">
+          <MetricCard label="Your Call" impact="HIGH"
+            value={humanCall === 'up' ? '▲ Higher' : '▼ Lower'}
+            sub={`ETH went ${outcome === 'up' ? '▲' : '▼'} ${deltaText}`}
+            color={humanCall === 'up' ? '#07BE6A' : '#F12E49'}
+          />
+          <MetricCard label="Axiom-7 Call" impact="HIGH"
+            value={agentCall ? (agentCall === 'up' ? '▲ Higher' : '▼ Lower') : 'No call'}
+            sub={`${agentPts} pts`}
+            color={agentCall === 'up' ? '#07BE6A' : agentCall === 'down' ? '#F12E49' : 'var(--ink-3)'}
+          />
+          <MetricCard label="Points Earned" impact="HIGH"
+            value={String(pts)}
+            sub="pts this round"
+            color="var(--sig)"
+            icon="★"
+          />
+          <MetricCard label="Round Duration" impact="HIGH"
+            value={`${duration}s`}
+            sub={`${getDurationMultiplier(duration)}× pts multiplier`}
+            color="#d97706"
+            icon="⚡"
+          />
+          <MetricCard label="Strategy" impact="MEDIUM"
+            value={analysis.strategyType}
+            sub={analysis.strategyDesc}
+          />
+          <MetricCard label="ETH Move" impact="MEDIUM"
+            value={deltaText}
+            sub={`$${startPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} → $${closePrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            color={pct >= 0 ? '#07BE6A' : '#F12E49'}
+          />
+        </div>
 
-            {/* Download card */}
+        {/* ── Actions ── */}
+        <div className="space-y-2.5">
+
+          {/* Share on X — dark ink button like Gauntlet */}
+          <a href={tweetUrl} target="_blank" rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-mono text-[12px] font-bold uppercase tracking-[.07em] transition-opacity hover:opacity-80 text-white"
+            style={{ background: 'var(--ink)' }}>
+            <svg width="14" height="14" viewBox="0 0 1200 1227" fill="currentColor">
+              <path d="M714.163 519.284L1160.89 0H1055.03L667.137 450.887L357.328 0H0L468.492 681.821L0 1226.37H105.866L515.491 750.218L842.672 1226.37H1200L714.137 519.284H714.163ZM569.165 687.828L521.697 619.934L144.011 79.6944H306.615L611.412 515.685L658.88 583.579L1055.08 1150.3H892.476L569.165 687.854V687.828Z"/>
+            </svg>
+            Share result on X
+          </a>
+
+          {/* Download card + Mint NFT */}
+          <div className="grid grid-cols-2 gap-2">
             <button onClick={handleDownload} disabled={downloading}
-              className="flex flex-col items-center gap-1 py-2.5 rounded-xl transition-all disabled:opacity-60"
-              style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.1)'}}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.6">
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+              className="flex items-center justify-center gap-2 py-3 rounded-xl font-mono text-[12px] font-bold uppercase tracking-[.06em] transition-all disabled:opacity-60"
+              style={{ background: 'var(--surface)', border: '1px solid var(--line-2)', color: 'var(--ink-2)' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
               </svg>
-              <span className="font-mono text-[9px] text-white/40 uppercase tracking-[.08em]">{downloading?'…':'Card'}</span>
+              {downloading ? '…' : 'Download Card'}
             </button>
 
-            {/* Mint NFT */}
             {account
-              ?<button
-                  onClick={mintState==='idle'||mintState==='error'?mint:undefined}
-                  disabled={mintState==='checking'||mintState==='minting'||mintState==='done'||alreadyMinted}
-                  className="flex flex-col items-center gap-1 py-2.5 rounded-xl transition-all disabled:opacity-60"
+              ? <button
+                  onClick={mintState === 'idle' || mintState === 'error' ? mint : undefined}
+                  disabled={mintState === 'checking' || mintState === 'minting' || mintState === 'done' || alreadyMinted}
+                  className="flex items-center justify-center gap-2 py-3 rounded-xl font-mono text-[12px] font-bold uppercase tracking-[.06em] transition-all disabled:opacity-60"
                   style={{
-                    background:mintState==='done'||alreadyMinted?'rgba(16,185,129,0.12)':'rgba(108,43,242,0.18)',
-                    border:`1px solid ${mintState==='done'||alreadyMinted?'rgba(16,185,129,0.35)':'rgba(108,43,242,0.35)'}`,
+                    background: mintState === 'done' || alreadyMinted ? 'rgba(7,190,106,0.1)' : 'var(--sig-wash)',
+                    border: `1px solid ${mintState === 'done' || alreadyMinted ? 'rgba(7,190,106,0.3)' : 'rgba(108,43,242,0.25)'}`,
+                    color: mintState === 'done' || alreadyMinted ? '#07BE6A' : 'var(--sig)',
                   }}>
-                  {mintState==='minting'
-                    ?<div className="w-4 h-4 rounded-full border-2 border-[#9A6BFF] border-t-transparent animate-spin"/>
-                    :<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={mintState==='done'||alreadyMinted?'#10b981':'#9A6BFF'} strokeWidth="2" strokeLinecap="round">
+                  {mintState === 'minting'
+                    ? <div className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                    : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                         <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
                       </svg>
                   }
-                  <span className="font-mono text-[9px] uppercase tracking-[.08em]"
-                    style={{color:mintState==='done'||alreadyMinted?'#10b981':'#9A6BFF'}}>
-                    {mintState==='done'||alreadyMinted?'Minted':'Mint'}
-                  </span>
+                  {mintState === 'done' || alreadyMinted ? 'Minted ✓' : 'Mint NFT'}
                 </button>
-              :<div className="flex flex-col items-center gap-1 py-2.5 rounded-xl opacity-30"
-                  style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.1)'}}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
+              : <div className="flex items-center justify-center gap-2 py-3 rounded-xl font-mono text-[12px] font-bold uppercase tracking-[.06em] opacity-40"
+                  style={{ background: 'var(--surface)', border: '1px solid var(--line-2)', color: 'var(--ink-3)' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                     <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
                   </svg>
-                  <span className="font-mono text-[9px] text-white/40 uppercase tracking-[.08em]">Mint</span>
+                  Mint NFT
                 </div>
             }
-
-            {/* Share to X */}
-            <a href={tweetUrl} target="_blank" rel="noopener noreferrer"
-              className="flex flex-col items-center gap-1 py-2.5 rounded-xl transition-opacity hover:opacity-80"
-              style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.1)'}}>
-              <svg width="15" height="15" viewBox="0 0 1200 1227" fill="white" opacity="0.6">
-                <path d="M714.163 519.284L1160.89 0H1055.03L667.137 450.887L357.328 0H0L468.492 681.821L0 1226.37H105.866L515.491 750.218L842.672 1226.37H1200L714.137 519.284H714.163ZM569.165 687.828L521.697 619.934L144.011 79.6944H306.615L611.412 515.685L658.88 583.579L1055.08 1150.3H892.476L569.165 687.854V687.828Z"/>
-              </svg>
-              <span className="font-mono text-[9px] text-white/40 uppercase tracking-[.08em]">Share</span>
-            </a>
           </div>
 
-          {mintError&&<p className="font-mono text-[10px] text-[#f43f5e] text-center">{mintError}</p>}
-          {(mintState==='done'||alreadyMinted)&&mintedTokenId!==null&&(
+          {mintError && <p className="font-mono text-[10px] text-center" style={{ color: '#F12E49' }}>{mintError}</p>}
+          {(mintState === 'done' || alreadyMinted) && mintedTokenId !== null && (
             <a href={`${EXPLORER}/token/${CONTRACTS.BattleResultNFT}?a=${account?.address}`}
               target="_blank" rel="noopener noreferrer"
-              className="block text-center font-mono text-[10px] text-[#9A6BFF]/60 hover:text-[#9A6BFF] transition-colors">
+              className="block text-center font-mono text-[10px] transition-opacity hover:opacity-70"
+              style={{ color: 'var(--sig)' }}>
               View NFT on Mantle Explorer ↗
             </a>
           )}
 
-          {/* Play again */}
+          {/* Play Again — sig purple like Gauntlet rematch button */}
           <button onClick={onPlayAgain}
-            className="w-full py-3.5 rounded-xl font-mono font-bold text-[13px] uppercase tracking-[.08em] text-white transition-all active:scale-[.97] hover:brightness-110"
-            style={{background:ctaBg,boxShadow:`0 0 28px ${glowColor}`}}>
+            className="w-full py-3.5 rounded-xl font-mono font-bold text-[13px] uppercase tracking-[.08em] text-white transition-all active:scale-[.97]"
+            style={{ background: 'var(--sig)', boxShadow: '0 4px 20px rgba(108,43,242,0.35)' }}>
             {ctaLabel}
           </button>
 
-          {txHash&&(
+          {txHash && (
             <a href={`https://sepolia.mantlescan.xyz/tx/${txHash}`}
               target="_blank" rel="noopener noreferrer"
-              className="flex items-center justify-center gap-1.5 font-mono text-[10px] text-white/18 hover:text-white/45 uppercase tracking-[.08em] pb-1 transition-colors">
+              className="flex items-center justify-center gap-1.5 font-mono text-[10px] uppercase tracking-[.08em] pb-1 transition-opacity hover:opacity-70"
+              style={{ color: 'var(--ink-3)' }}>
               ▦ View on Mantle ↗
             </a>
           )}
         </div>
 
       </div>
-
-      <style>{`
-        @keyframes rPulseG{0%,100%{text-shadow:0 0 40px #10b981,0 0 80px rgba(16,185,129,.25)}50%{text-shadow:0 0 60px #10b981,0 0 120px rgba(16,185,129,.5)}}
-        @keyframes rPulseY{0%,100%{text-shadow:0 0 40px #fbbf24,0 0 80px rgba(251,191,36,.2)}50%{text-shadow:0 0 60px #fbbf24,0 0 120px rgba(251,191,36,.4)}}
-        @keyframes rShake{0%,100%{transform:translateX(0)}15%{transform:translateX(-7px) rotate(-2deg)}30%{transform:translateX(6px) rotate(2deg)}45%{transform:translateX(-5px) rotate(-1deg)}60%{transform:translateX(4px) rotate(1deg)}75%{transform:translateX(-2px)}}
-      `}</style>
     </div>
   )
 }
