@@ -383,7 +383,9 @@ export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } =
   async function handleStartRound() {
     setWaitingOpen(true)
     try {
-      await openRound('ETH/USD', selectedDuration)
+      await openRound(displayAsset, selectedDuration)
+      // Immediately invalidate so wagmi re-fetches nextRoundId/getRound
+      // and the round appears as open as soon as the tx confirms.
       queryClient.invalidateQueries()
     } catch {
       setWaitingOpen(false)
@@ -682,23 +684,27 @@ export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } =
               </div>
             )}
 
-            {/* No wallet-not-connected gate — start button always uses mock mode */}
-            {(
-              <button
-                onClick={() => {
-                  // Always start a mock round from the idle panel regardless of
-                  // whether contracts are live. This fixes 15s/30s rounds which
-                  // expire before the 5–8s chain-polling cycle detects them.
-                  // forceMock=true routes all display state through the mock path.
+            {/* Start Round — on-chain when contracts live + wallet connected, mock otherwise */}
+            <button
+              disabled={CONTRACTS_LIVE && !isConnected}
+              onClick={() => {
+                if (!CONTRACTS_LIVE) {
+                  // Contracts not yet deployed — fall back to simulated play
                   setForceMock(true)
                   startMockRound(displayAsset, selectedDuration)
-                }}
-                className="w-full py-3.5 rounded-xl font-mono font-bold text-[13px] uppercase tracking-[.08em] text-white transition-all active:scale-[.97]"
-                style={{ background: 'linear-gradient(135deg, #6C2BF2, #7c3af5)',
-                  boxShadow: '0 0 28px rgba(108,43,242,0.50)' }}>
-                {`◼  Start ${selectedDuration}s Round  →`}
-              </button>
-            )}
+                  return
+                }
+                // Live contracts: require wallet connection, then go on-chain
+                if (!isConnected) return
+                handleStartRound()
+              }}
+              className="w-full py-3.5 rounded-xl font-mono font-bold text-[13px] uppercase tracking-[.08em] text-white transition-all active:scale-[.97] disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ background: 'linear-gradient(135deg, #6C2BF2, #7c3af5)',
+                boxShadow: '0 0 28px rgba(108,43,242,0.50)' }}>
+              {CONTRACTS_LIVE && !isConnected
+                ? '🔗  Connect Wallet to Play'
+                : `◼  Start ${selectedDuration}s Round  →`}
+            </button>
           </div>
         )}
 

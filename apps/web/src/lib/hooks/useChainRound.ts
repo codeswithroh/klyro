@@ -50,14 +50,14 @@ export function useChainRound() {
     return () => clearInterval(id)
   }, [])
 
-  // Step 1: get next round ID
+  // Step 1: get next round ID — poll every 2s for fast round detection
   const { data: nextRoundId, isLoading: loadingId } = useReadContract({
     address: CONTRACTS.RoundManager as `0x${string}`,
     abi: ROUND_MANAGER_ABI,
     functionName: 'nextRoundId',
     query: {
       enabled: CONTRACTS_LIVE,
-      refetchInterval: 5_000,
+      refetchInterval: 2_000,
     },
   })
 
@@ -65,7 +65,7 @@ export function useChainRound() {
     ? (nextRoundId as bigint) - 1n
     : null
 
-  // Step 2: get round data
+  // Step 2: get round data — poll every 2s so 15s/30s rounds don't slip by
   const { data: roundData, isLoading: loadingRound } = useReadContract({
     address: CONTRACTS.RoundManager as `0x${string}`,
     abi: ROUND_MANAGER_ABI,
@@ -73,7 +73,7 @@ export function useChainRound() {
     args: currentRoundId !== null ? [currentRoundId] : undefined,
     query: {
       enabled: CONTRACTS_LIVE && currentRoundId !== null,
-      refetchInterval: 3_000,
+      refetchInterval: 2_000,
     },
   })
 
