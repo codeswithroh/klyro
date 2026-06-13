@@ -45,7 +45,7 @@ export function WalletButton() {
       wallets={wallets}
       theme="light"
       connectButton={{
-        label: 'Play now',
+        label: 'Connect',
         style: { ...btnStyle, background: 'var(--ink)', color: '#fff' },
       }}
       detailsButton={{

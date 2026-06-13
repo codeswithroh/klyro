@@ -1,6 +1,6 @@
-import Link from 'next/link'
 import { Wordmark } from '@/components/ui/Wordmark'
 import { DuelCardPreview } from '@/components/arena/DuelCardPreview'
+import { HeroCTAs, BottomCTA } from '@/components/ui/HeroCTAs'
 
 export default function LandingPage() {
   return (
@@ -25,21 +25,7 @@ export default function LandingPage() {
               Every call settled fairly and verifiably on-chain. No jargon. No seed phrases. Just one tap.
             </p>
 
-            <div className="mt-8 flex gap-3 flex-wrap">
-              <Link href="/arena"
-                className="font-mono font-semibold text-[13px] tracking-[.04em] uppercase bg-sig text-white px-5 py-3.5 rounded-full shadow-sig transition-transform active:translate-y-px">
-                Enter the arena →
-              </Link>
-              <Link href="/challenge"
-                className="font-mono font-semibold text-[13px] tracking-[.04em] uppercase px-5 py-3.5 rounded-full border transition-transform active:translate-y-px"
-                style={{ background: 'rgba(108,43,242,0.12)', borderColor: 'rgba(108,43,242,0.35)', color: '#9A6BFF' }}>
-                ⚔️ Gauntlet Mode
-              </Link>
-              <Link href="/leaderboard"
-                className="font-mono font-semibold text-[13px] tracking-[.04em] uppercase bg-surface text-ink border border-line-2 px-5 py-3.5 rounded-full transition-transform active:translate-y-px">
-                View leaderboard
-              </Link>
-            </div>
+            <HeroCTAs />
           </div>
 
           <div className="flex justify-center order-first lg:order-last">
@@ -98,10 +84,7 @@ export default function LandingPage() {
           <p className="font-mono text-[12px] font-semibold tracking-[.22em] uppercase text-ink-3 mb-4">
             30 seconds to your first prediction
           </p>
-          <Link href="/arena"
-            className="inline-flex font-mono font-semibold text-[14px] tracking-[.04em] uppercase bg-sig text-white px-8 py-4 rounded-full shadow-sig transition-transform active:translate-y-px">
-            Play now — it's free
-          </Link>
+          <BottomCTA />
         </div>
       </section>
     </>
