@@ -17,6 +17,7 @@ export function Nav() {
           {[
             { href: '/arena', label: 'Arena' },
             { href: '/challenge', label: 'Gauntlet' },
+            { href: '/benchmark', label: 'Benchmark' },
             { href: '/agents', label: 'Agents' },
             { href: '/leaderboard', label: 'Board' },
           ].map((l) => (

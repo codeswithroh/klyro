@@ -83,7 +83,7 @@ interface RoundState {
 
   // Actions
   startRound: (asset: AssetPair, durationSeconds?: number) => void
-  makeCall: (call: Call) => void
+  makeCall: (call: Call, feedId?: string) => void  // feedId → calls /api/bot-signal for real prediction
   tick: () => void   // called by a setInterval every second
   resetToIdle: () => void
   setAsset: (asset: AssetPair) => void
@@ -173,19 +173,43 @@ export const useRoundStore = create<RoundState>((set, get) => ({
     })
   },
 
-  makeCall: (call) => {
+  makeCall: (call, feedId?) => {
     const { phase, agent, asset } = get()
     if (phase !== 'open') return
 
     set({ humanCall: call, agentThinking: true })
 
-    // Agent decides after 1.5–3 seconds for dramatic effect
-    const thinkMs = 1500 + Math.random() * 1500
-    setTimeout(() => {
-      const history = globalPriceSimulator.getHistory(asset)
-      const agentCall = agentPredict(agent!, history)
-      set({ agentCall, agentThinking: false })
-    }, thinkMs)
+    // Think delay: 2–5s for a realistic feel
+    const thinkMs = 2000 + Math.random() * 3000
+
+    if (feedId) {
+      // Gauntlet mode: fetch real market-based direction from API
+      // API responds fast; we apply the result after the think delay.
+      let apiDirection: 'up' | 'down' | null = null
+      fetch('/api/bot-signal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ feedId }),
+      })
+        .then(r => r.json())
+        .then(({ direction }) => { apiDirection = direction ?? null })
+        .catch(() => {})
+
+      setTimeout(() => {
+        if (!get().agentThinking) return  // already resolved externally
+        const history = globalPriceSimulator.getHistory(asset)
+        const agentCall: Call = apiDirection ?? agentPredict(agent!, history)
+        set({ agentCall, agentThinking: false })
+      }, thinkMs)
+    } else {
+      // Non-gauntlet mock mode: use local algorithm
+      setTimeout(() => {
+        if (!get().agentThinking) return
+        const history = globalPriceSimulator.getHistory(asset)
+        const agentCall = agentPredict(agent!, history)
+        set({ agentCall, agentThinking: false })
+      }, thinkMs)
+    }
   },
 
   tick: () => {

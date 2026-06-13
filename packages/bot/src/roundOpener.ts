@@ -1,10 +1,21 @@
 /**
- * RoundOpener — fetches fresh Pyth VAAs from Hermes, pushes them on-chain,
- * then calls RoundManager.openRound. Runs on a fixed interval so there's
- * always an active round for players to join.
+ * RoundOpener — fetches fresh prices from Hermes, encodes them for MockPyth,
+ * then calls RoundManager.openRoundWithPrice. Runs on a fixed interval when
+ * ENABLE_AUTO_ROUND_OPENER=true (default: disabled — user opens from UI).
+ *
+ * MockPyth encoding: abi.encode(bytes32 feedId, int64 price, uint64 conf, int32 expo)
+ * NOT Pyth v32 VAAs (PNAU format) — the old Wormhole-based contract is broken on Mantle Sepolia.
  */
 
-import { createPublicClient, createWalletClient, http, type PublicClient, type WalletClient } from 'viem'
+import {
+  createPublicClient,
+  createWalletClient,
+  encodeAbiParameters,
+  parseAbiParameters,
+  http,
+  type PublicClient,
+  type WalletClient,
+} from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { config } from './config.js'
 import { mantleSepolia } from './chain.js'
@@ -13,10 +24,10 @@ import { ROUND_MANAGER_ABI } from './abis.js'
 const HERMES_BASE = 'https://hermes.pyth.network/v2/updates/price/latest'
 const ROUND_INTERVAL_MS = 70_000  // open a new round every ~70s (60s round + 10s buffer)
 
-// Pyth contract address on Mantle Sepolia
-const PYTH_ADDRESS = '0x98046Bd286715D3B0BC227Dd7a956b83D8978603' as const
+// MockPyth contract on Mantle Sepolia (replaces stale Pyth v32)
+const MOCK_PYTH_ADDRESS = (process.env.MOCK_PYTH_ADDRESS ?? '0xd4C8e113b8F3BA78258147ae9E2485b36f240780') as `0x${string}`
 
-const PYTH_ABI = [
+const MOCK_PYTH_ABI = [
   {
     name: 'updatePriceFeeds',
     type: 'function' as const,
@@ -59,9 +70,18 @@ function log(msg: string) {
   console.log(`[RoundOpener][${new Date().toISOString()}] ${msg}`)
 }
 
-async function fetchVAAs(feedIds: string[]): Promise<{ vaas: `0x${string}`[]; price: number }> {
-  const idsParam = feedIds.map((id) => `ids[]=${id}`).join('&')
-  const url = `${HERMES_BASE}?${idsParam}&encoding=hex&parsed=true`
+interface HermesResult {
+  updateData: `0x${string}`[]  // MockPyth-encoded, not PNAU VAAs
+  price: number                 // human-readable for logging
+}
+
+/**
+ * Fetch the latest price from Hermes REST and encode it for MockPyth.
+ * MockPyth accepts abi.encode(bytes32 feedId, int64 price, uint64 conf, int32 expo)
+ * — NOT the binary PNAU VAA format that the old Pyth v32 requires.
+ */
+async function fetchAndEncode(feedId: `0x${string}`): Promise<HermesResult> {
+  const url = `${HERMES_BASE}?ids[]=${feedId}&encoding=hex&parsed=true`
   const res = await fetch(url)
   if (!res.ok) {
     const body = await res.text().catch(() => '')
@@ -69,137 +89,83 @@ async function fetchVAAs(feedIds: string[]): Promise<{ vaas: `0x${string}`[]; pr
   }
   const data = await res.json()
 
-  const vaas: `0x${string}`[] = (data.binary?.data ?? []).map((v: string) => `0x${v}` as `0x${string}`)
+  const parsed = data.parsed?.[0]
+  if (!parsed) throw new Error('No parsed price from Hermes')
 
-  // Extract ETH/USD price for logging
-  const ethParsed = data.parsed?.find((p: any) =>
-    p.id === feedIds[0].replace('0x', '')
+  const rawPrice = BigInt(parsed.price.price)
+  const conf     = BigInt(parsed.price.conf)
+  const expo     = parsed.price.expo as number
+  const price    = Number(rawPrice) * Math.pow(10, expo)
+
+  const encoded = encodeAbiParameters(
+    parseAbiParameters('bytes32, int64, uint64, int32'),
+    [feedId, rawPrice, conf, expo],
   )
-  const expo = ethParsed?.price?.expo ?? -8
-  const rawPrice = Number(ethParsed?.price?.price ?? 0)
-  const price = rawPrice * Math.pow(10, expo)
 
-  return { vaas, price }
+  return { updateData: [encoded], price }
 }
 
 async function pushPriceAndOpenRound(asset: string, durationSeconds: number): Promise<bigint> {
-  const feedId = FEEDS[asset]
+  const feedId = FEEDS[asset] as `0x${string}`
   if (!feedId) throw new Error(`Unknown asset: ${asset}`)
 
-  log(`Fetching VAAs for ${asset}…`)
-  const { vaas, price } = await fetchVAAs([feedId])
+  log(`Fetching price for ${asset}…`)
+  const { updateData, price } = await fetchAndEncode(feedId)
+  log(`${asset} = $${price.toFixed(2)} — opening round via openRoundWithPrice…`)
 
-  if (vaas.length === 0) throw new Error('No VAAs returned from Hermes')
-  log(`Got ${vaas.length} VAA(s) | ${asset} = $${price.toFixed(2)}`)
+  // MockPyth fee is always 0
+  const hash = await walletClient.writeContract({
+    address: config.roundManagerAddress,
+    abi: ROUND_MANAGER_ABI,
+    functionName: 'openRoundWithPrice',
+    args: [updateData, feedId, BigInt(durationSeconds)],
+    value: 0n,
+    gas: 350_000n,
+  })
+  const receipt = await publicClient.waitForTransactionReceipt({ hash })
+  log(`Round opened ✓ (${hash})`)
 
-  // Pyth fee on testnets is typically 1 wei per update.
-  // getUpdateFee may revert on some RPC nodes — use 1 wei as safe fallback.
-  let fee = 1n
-  try {
-    fee = await publicClient.readContract({
-      address: PYTH_ADDRESS,
-      abi: PYTH_ABI,
-      functionName: 'getUpdateFee',
-      args: [vaas],
-    }) as bigint
-  } catch {
-    log('getUpdateFee unavailable, using 1 wei')
-  }
-
-  // Single-tx: push price + open round atomically via openRoundWithPrice.
-  // Falls back to two-step if the deployed contract is the old one.
-  log(`Opening ${asset} round via openRoundWithPrice (fee: ${fee} wei)…`)
-  let receipt
-  try {
-    const openHash = await walletClient.writeContract({
-      address: config.roundManagerAddress,
-      abi: ROUND_MANAGER_ABI,
-      functionName: 'openRoundWithPrice',
-      args: [vaas, feedId, BigInt(durationSeconds)],
-      value: fee,
-      // Mantle Sepolia uses EIP-7623 calldata floor pricing — the VAA blob is
-      // ~900 bytes so auto-estimated gas consistently undershoots.  600k covers
-      // calldata floor + Pyth update + openRound execution with room to spare.
-      gas: 350_000n,
-    })
-    receipt = await publicClient.waitForTransactionReceipt({ hash: openHash })
-    log(`Round opened ✓ single-tx (${openHash})`)
-  } catch (e: unknown) {
-    const msg = (e as Error).message ?? ''
-    if (msg.includes('ContractFunctionExecutionError') || msg.includes('selector') || msg.includes('not found')) {
-      // Old contract — fall back to two-step
-      log('openRoundWithPrice not found, falling back to two-step…')
-      const updateHash = await walletClient.writeContract({
-        address: PYTH_ADDRESS,
-        abi: PYTH_ABI,
-        functionName: 'updatePriceFeeds',
-        args: [vaas],
-        value: fee,
-        gas: 350_000n,
-      })
-      await publicClient.waitForTransactionReceipt({ hash: updateHash })
-      log(`Price pushed ✓ (${updateHash})`)
-
-      log(`Opening ${asset} round (${durationSeconds}s)…`)
-      const openHash = await walletClient.writeContract({
-        address: config.roundManagerAddress,
-        abi: ROUND_MANAGER_ABI,
-        functionName: 'openRound',
-        args: [feedId, BigInt(durationSeconds)],
-        gas: 200_000n,
-      })
-      receipt = await publicClient.waitForTransactionReceipt({ hash: openHash })
-      log(`Round opened ✓ two-step (${openHash})`)
-    } else {
-      throw e
-    }
-  }
-
-  // Extract roundId from RoundOpened event log
-  // Event: RoundOpened(uint256 indexed roundId, ...)
-  const roundOpenedTopic = '0x' + Buffer.from('RoundOpened(uint256,bytes32,int64,uint64,uint64)').toString('hex')
+  // Extract roundId from the first log's topic[1]
   const roundId = BigInt(receipt.logs[0]?.topics[1] ?? '0x1')
   log(`Round #${roundId} is live`)
   return roundId
 }
 
 /**
- * pushFreshVAA — fetches the latest Pyth price VAA from Hermes and pushes it
- * on-chain. Used before any contract call that reads Pyth price (openRound,
- * resolveRound) so getPriceNoOlderThan never throws StalePrice.
+ * pushFreshPrice — fetches the latest price from Hermes and pushes it to
+ * MockPyth on-chain. Used before any contract call that reads price
+ * (resolveRoundWithPrice, etc.) so getPriceNoOlderThan never throws StalePrice.
  *
  * Accepts optional client overrides so index.ts can pass its own viem clients.
  */
-export async function pushFreshVAA(
+export async function pushFreshPrice(
   feedId: `0x${string}`,
   pubClient: PublicClient = publicClient,
   walClient: WalletClient = walletClient,
 ) {
-  const { vaas, price } = await fetchVAAs([feedId])
-  if (vaas.length === 0) throw new Error('No VAAs from Hermes')
-
-  let fee = 1n
-  try {
-    fee = await pubClient.readContract({
-      address: PYTH_ADDRESS,
-      abi: PYTH_ABI,
-      functionName: 'getUpdateFee',
-      args: [vaas],
-    }) as bigint
-  } catch { /* 1 wei fallback */ }
+  const { updateData, price } = await fetchAndEncode(feedId)
 
   const hash = await walClient.writeContract({
-    address: PYTH_ADDRESS,
-    abi: PYTH_ABI,
+    address: MOCK_PYTH_ADDRESS,
+    abi: MOCK_PYTH_ABI,
     functionName: 'updatePriceFeeds',
-    args: [vaas],
-    value: fee,
-    gas: 350_000n,
+    args: [updateData],
+    value: 0n,
+    gas: 200_000n,
     account: walClient.account!,
     chain: mantleSepolia,
   })
   await pubClient.waitForTransactionReceipt({ hash })
-  console.log(`[RoundOpener][${new Date().toISOString()}] Price pushed ✓ feed=${feedId.slice(0,10)}… price≈${price.toFixed(2)}`)
+  console.log(`[RoundOpener][${new Date().toISOString()}] MockPyth updated ✓ feed=${feedId.slice(0,10)}… price≈$${price.toFixed(2)}`)
+}
+
+/**
+ * fetchMockPythUpdateData — returns encoded updateData for MockPyth without
+ * pushing on-chain. Used by index.ts to build the resolveRoundWithPrice call.
+ */
+export async function fetchMockPythUpdateData(feedId: `0x${string}`): Promise<`0x${string}`[]> {
+  const { updateData } = await fetchAndEncode(feedId)
+  return updateData
 }
 
 export async function startRoundOpener(durationSeconds = 60) {

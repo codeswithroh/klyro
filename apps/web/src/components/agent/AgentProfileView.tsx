@@ -112,9 +112,19 @@ export function AgentProfileView({ agentId }: AgentProfileViewProps) {
   const [stats, setStats] = useState<AgentStats | null>(null)
   const [loading, setLoading] = useState(true)
 
+  // Initial load + live polling so reputation visibly updates as rounds settle.
   useEffect(() => {
     if (!meta) { setLoading(false); return }
-    fetchAgentStats(meta.wallet).then(s => { setStats(s); setLoading(false) })
+    let cancelled = false
+    const load = () =>
+      fetchAgentStats(meta.wallet).then(s => {
+        if (cancelled) return
+        if (s) setStats(s)
+        setLoading(false)
+      })
+    load()
+    const id = setInterval(load, 8_000)
+    return () => { cancelled = true; clearInterval(id) }
   }, [meta?.wallet])
 
   if (!meta) {
@@ -143,13 +153,22 @@ export function AgentProfileView({ agentId }: AgentProfileViewProps) {
           </Link>
         </div>
 
-        {/* ERC-8004 badge */}
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-6"
-          style={{ background: 'var(--sig-wash)', border: '1px solid rgba(108,43,242,0.25)' }}>
-          <span className="w-1.5 h-1.5 rounded-full bg-[#6C2BF2] animate-pulse" />
-          <span className="font-mono text-[10px] tracking-[.18em] uppercase" style={{ color: 'var(--sig)' }}>
-            ERC-8004 · Agent Identity
-          </span>
+        {/* ERC-8004 badge + live indicator */}
+        <div className="flex items-center gap-2 mb-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full"
+            style={{ background: 'var(--sig-wash)', border: '1px solid rgba(108,43,242,0.25)' }}>
+            <span className="w-1.5 h-1.5 rounded-full bg-[#6C2BF2] animate-pulse" />
+            <span className="font-mono text-[10px] tracking-[.18em] uppercase" style={{ color: 'var(--sig)' }}>
+              ERC-8004 · Agent Identity
+            </span>
+          </div>
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full"
+            style={{ background: 'rgba(7,190,106,0.10)', border: '1px solid rgba(7,190,106,0.25)' }}>
+            <span className="w-1.5 h-1.5 rounded-full bg-[#07BE6A] animate-pulse" />
+            <span className="font-mono text-[10px] tracking-[.14em] uppercase" style={{ color: '#07BE6A' }}>
+              Live
+            </span>
+          </div>
         </div>
 
         {/* identity card */}

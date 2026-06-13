@@ -15,7 +15,7 @@
  * in-round UI (chart, top strip, neon ring, betting panel).
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useActiveAccount } from 'thirdweb/react'
 import { useRoundStore, type Call } from '@/lib/store/roundStore'
 import { classifyBattle, calcPoints, getDurationMultiplier } from '@/components/arena/ResultModal'
@@ -217,6 +217,20 @@ function FinalReport({
   const isConnected = !!account
   const { submitScore, status: submitStatus, txHash: submitTxHash, error: submitError } = useSubmitGauntletScore()
 
+  // Auto-submit on mount — no manual button needed
+  useEffect(() => {
+    if (!isConnected || submitStatus !== 'idle') return
+    const t = setTimeout(() => {
+      submitScore({
+        wins:         humanScore,
+        losses:       agentScore,
+        totalRounds,
+        durationSecs: roundDuration,
+      })
+    }, 600)
+    return () => clearTimeout(t)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   const BASE_URL  = typeof window !== 'undefined' ? window.location.origin : 'https://klyro.xyz'
   const shareText = humanWon
     ? `I just beat Axiom-7 AI ${humanScore}-${agentScore} in ${DIFFICULTY_CONFIG[difficulty].label} (${roundDuration}s rounds) on @KlyroHQ! Earned ${totalPts} pts · Badge: ${matchBadge.icon} ${matchBadge.label}. #Klyro #Mantle #HumanVsAI`
@@ -390,7 +404,7 @@ function FinalReport({
             Share result on X
           </a>
 
-          {/* ── Submit Score on-chain ── */}
+          {/* ── On-chain score status (auto-submitted on mount) ── */}
           {submitStatus === 'confirmed' && submitTxHash ? (
             <a
               href={`https://sepolia.mantlescan.xyz/tx/${submitTxHash}`}
@@ -399,27 +413,25 @@ function FinalReport({
               style={{ background: 'var(--sig-wash)', color: 'var(--sig)', border: '1px solid rgba(108,43,242,0.3)' }}>
               ✓ Score on Mantle — View Tx ↗
             </a>
-          ) : (
+          ) : submitStatus === 'error' ? (
             <button
-              disabled={!isConnected || submitStatus === 'pending' || submitStatus === 'confirming'}
-              onClick={() => submitScore({
-                wins:         humanScore,
-                losses:       agentScore,
-                totalRounds:  totalRounds,
-                durationSecs: roundDuration,
-              })}
-              className="w-full py-3.5 rounded-xl font-mono font-bold text-[12px] uppercase tracking-[.07em] transition-all active:scale-[.97] disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ background: 'rgba(108,43,242,0.10)', color: 'var(--sig)', border: '1px solid rgba(108,43,242,0.3)' }}>
-              {!isConnected
-                ? '🔗 Connect Wallet to Submit Score'
-                : submitStatus === 'pending'
-                ? 'Waiting for wallet…'
-                : submitStatus === 'confirming'
-                ? 'Confirming on Mantle…'
-                : submitStatus === 'error'
-                ? '⚠ Failed — Tap to Retry'
-                : '⛓ Submit Score to Chain'}
+              onClick={() => submitScore({ wins: humanScore, losses: agentScore, totalRounds, durationSecs: roundDuration })}
+              className="w-full py-3.5 rounded-xl font-mono font-bold text-[12px] uppercase tracking-[.07em] transition-all active:scale-[.97]"
+              style={{ background: 'rgba(244,63,94,0.08)', color: '#f43f5e', border: '1px solid rgba(244,63,94,0.3)' }}>
+              ⚠ Failed to Submit — Tap to Retry
             </button>
+          ) : !isConnected ? (
+            <div className="w-full py-3 rounded-xl font-mono text-[11px] text-center"
+              style={{ background: 'rgba(108,43,242,0.06)', color: 'var(--ink-3)', border: '1px solid rgba(108,43,242,0.15)' }}>
+              🔗 Connect wallet to record score on-chain
+            </div>
+          ) : (
+            <div className="w-full py-3.5 rounded-xl font-mono text-[12px] text-center"
+              style={{ background: 'rgba(108,43,242,0.08)', color: 'var(--sig)', border: '1px solid rgba(108,43,242,0.2)' }}>
+              {submitStatus === 'pending' ? '⏳ Submitting score to Mantle…'
+                : submitStatus === 'confirming' ? '⛓ Confirming on-chain…'
+                : '⛓ Sending score to chain…'}
+            </div>
           )}
 
           {submitError && submitStatus === 'error' && (
@@ -450,15 +462,34 @@ function FinalReport({
 
 // ── Main ChallengeView ───────────────────────────────────────────────────────
 
+const ETH_FEED_ID = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
+const HERMES_PRICE_URL = `https://hermes.pyth.network/v2/updates/price/latest?ids[]=${ETH_FEED_ID}&parsed=true`
+
+async function fetchRealEthPrice(): Promise<number | null> {
+  try {
+    const r = await fetch(HERMES_PRICE_URL)
+    const d = await r.json()
+    const p = d.parsed?.[0]?.price
+    if (!p) return null
+    return Number(BigInt(p.price)) * Math.pow(10, p.expo)
+  } catch {
+    return null
+  }
+}
+
 export function ChallengeView() {
-  const [difficulty,     setDifficulty]     = useState<Difficulty>('best-of-3')
-  const [roundDuration,  setRoundDuration]  = useState(30)
-  const [challengePhase, setChallengePhase] = useState<ChallengePhase>('pick')
-  const [records,        setRecords]        = useState<RoundRecord[]>([])
-  const [humanScore,     setHumanScore]     = useState(0)
-  const [agentScore,     setAgentScore]     = useState(0)
-  const [currentRound,   setCurrentRound]   = useState(1)
-  const [lastRecord,     setLastRecord]     = useState<RoundRecord | null>(null)
+  const [difficulty,          setDifficulty]          = useState<Difficulty>('best-of-3')
+  const [roundDuration,       setRoundDuration]        = useState(30)
+  const [challengePhase,      setChallengePhase]       = useState<ChallengePhase>('pick')
+  const [records,             setRecords]              = useState<RoundRecord[]>([])
+  const [humanScore,          setHumanScore]           = useState(0)
+  const [agentScore,          setAgentScore]           = useState(0)
+  const [currentRound,        setCurrentRound]         = useState(1)
+  const [lastRecord,          setLastRecord]           = useState<RoundRecord | null>(null)
+  // Real-price state for the gauntlet chart
+  const [gauntletRoundKey,    setGauntletRoundKey]     = useState(0)
+  const [gauntletStartPrice,  setGauntletStartPrice]   = useState<number | null>(null)
+  const gauntletStartPriceRef = useRef<number | null>(null)
 
   const totalRounds = DIFFICULTY_CONFIG[difficulty].rounds
 
@@ -469,48 +500,74 @@ export function ChallengeView() {
   const resetMock      = useRoundStore(s => s.resetToIdle)
 
   // Detect round resolution — transition to between-round screen
+  // Uses REAL Hermes close price vs real start price for the outcome determination.
   useEffect(() => {
     if (mockPhase !== 'resolved' || challengePhase !== 'playing' || !mockLastResult) return
 
-    const { humanCall, agentCall, outcome, deltaText } = mockLastResult
+    const { humanCall, agentCall } = mockLastResult
+    const startPrice = gauntletStartPriceRef.current
 
-    // Head-to-head verdict: win only when human right AND agent wrong
-    const humanRight = humanCall === outcome
-    const agentRight = agentCall === outcome
-    let verdict: 'win' | 'lose' | 'draw'
-    if (humanCall === agentCall)        verdict = 'draw'
-    else if (humanRight && !agentRight) verdict = 'win'
-    else if (!humanRight && agentRight) verdict = 'lose'
-    else                                verdict = 'draw'
+    // Fetch the real close price from Hermes to determine the real outcome
+    fetchRealEthPrice().then(closePrice => {
+      let outcome: Call
+      let delta: string
 
-    const newRecord: RoundRecord = {
-      roundNum: currentRound,
-      humanCall, agentCall, outcome, verdict,
-      delta: deltaText,
-    }
+      if (startPrice && closePrice) {
+        // Use real price movement for the outcome
+        outcome = closePrice >= startPrice ? 'up' : 'down'
+        const pct = ((closePrice - startPrice) / startPrice) * 100
+        delta = `${pct >= 0 ? '+' : ''}${pct.toFixed(3)}%`
+      } else {
+        // Fallback to simulated outcome if Hermes fetch fails
+        outcome = mockLastResult.outcome
+        delta   = mockLastResult.deltaText
+      }
 
-    setRecords(prev => [...prev, newRecord])
-    setHumanScore(prev => prev + (verdict === 'win' ? 1 : 0))
-    setAgentScore(prev => prev + (verdict === 'lose' ? 1 : 0))
-    setLastRecord(newRecord)
-    setChallengePhase('between')
+      // Head-to-head verdict: win only when human right AND agent wrong
+      let verdict: 'win' | 'lose' | 'draw'
+      if (humanCall === agentCall)                   verdict = 'draw'
+      else if (humanCall === outcome && agentCall !== outcome) verdict = 'win'
+      else if (agentCall === outcome && humanCall !== outcome) verdict = 'lose'
+      else                                           verdict = 'draw'
+
+      const newRecord: RoundRecord = {
+        roundNum: currentRound,
+        humanCall, agentCall, outcome, verdict, delta,
+      }
+
+      setRecords(prev => [...prev, newRecord])
+      setHumanScore(prev => prev + (verdict === 'win' ? 1 : 0))
+      setAgentScore(prev => prev + (verdict === 'lose' ? 1 : 0))
+      setLastRecord(newRecord)
+      setChallengePhase('between')
+    })
   }, [mockPhase]) // eslint-disable-line
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  async function seedRealPrice() {
+    const price = await fetchRealEthPrice()
+    setGauntletStartPrice(price)
+    gauntletStartPriceRef.current = price
+    setGauntletRoundKey(k => k + 1)  // triggers ArenaView to reset liveHistory
+  }
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
-  function handleStart() {
+  async function handleStart() {
     resetMock()
     setRecords([])
     setHumanScore(0)
     setAgentScore(0)
     setCurrentRound(1)
     setLastRecord(null)
-    // Start round immediately so ArenaView renders in mOpen state (no idle flash)
+    // Fetch real price before starting so the chart starts at the real ETH price
+    await seedRealPrice()
     startMockRound('ETH/USD', roundDuration)
     setChallengePhase('playing')
   }
 
-  function handleNextRound() {
+  async function handleNextRound() {
     // Read scores directly from state (already updated by the useEffect)
     const matchDecided = humanScore > Math.floor(totalRounds / 2) ||
                          agentScore > Math.floor(totalRounds / 2)
@@ -520,7 +577,8 @@ export function ChallengeView() {
     } else {
       setCurrentRound(r => r + 1)
       resetMock()
-      // Start next round immediately so ArenaView renders in mOpen on mount
+      // Fetch fresh real price for the new round
+      await seedRealPrice()
       startMockRound('ETH/USD', roundDuration)
       setChallengePhase('playing')
     }
@@ -533,6 +591,8 @@ export function ChallengeView() {
     setAgentScore(0)
     setCurrentRound(1)
     setLastRecord(null)
+    setGauntletStartPrice(null)
+    gauntletStartPriceRef.current = null
     setChallengePhase('pick')
   }
 
@@ -648,7 +708,11 @@ export function ChallengeView() {
     return (
       <div className="relative">
         {/* Full Arena interface — identical to Arena mode, forced into mock mode */}
-        <ArenaView gauntletMode={true} />
+        <ArenaView
+          gauntletMode={true}
+          gauntletRoundKey={gauntletRoundKey}
+          gauntletStartPrice={gauntletStartPrice}
+        />
 
         {/* Challenge progress HUD — fixed pill just below the arena top strip */}
         <div

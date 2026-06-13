@@ -16,7 +16,7 @@ import { config } from './config.js'
 import { mantleSepolia } from './chain.js'
 import { ROUND_MANAGER_ABI } from './abis.js'
 import { predictDirection } from './predictor.js'
-import { startRoundOpener, pushFreshVAA } from './roundOpener.js'
+import { startRoundOpener, fetchMockPythUpdateData } from './roundOpener.js'
 
 // ── Clients ────────────────────────────────────────────────────────────────────
 
@@ -87,20 +87,24 @@ async function resolveIfNeeded(roundId: bigint) {
     const now = BigInt(Math.floor(Date.now() / 1000))
     if (now < round.closeTime) return
 
-    // resolveRound calls getPriceNoOlderThan(feedId, 120) on the Pyth contract.
-    // On Mantle Sepolia nobody else pushes prices, so we must refresh the feed
-    // ourselves before resolving, otherwise it throws StalePrice (0x19abf40e).
-    log(`Round #${roundId}: pushing fresh price before resolve…`)
-    await pushFreshVAA(round.priceFeedId, publicClient, walletClient)
+    // Use resolveRoundWithPrice which atomically pushes MockPyth-encoded price
+    // and resolves the round in one tx.  The old resolveRound + pushFreshVAA
+    // approach is broken — the old Pyth v32 contract can't accept PNAU VAAs.
+    log(`Round #${roundId}: fetching close price for MockPyth…`)
+    const updateData = await fetchMockPythUpdateData(round.priceFeedId)
 
-    log(`Round #${roundId}: resolving…`)
+    log(`Round #${roundId}: resolving via resolveRoundWithPrice…`)
     const hash = await walletClient.writeContract({
       address: config.roundManagerAddress,
       abi: ROUND_MANAGER_ABI,
-      functionName: 'resolveRound',
-      args: [roundId],
+      functionName: 'resolveRoundWithPrice',
+      args: [updateData, roundId],
+      value: 0n,
+      gas: 400_000n,
     })
     log(`Round #${roundId}: resolve tx ${hash}`)
+    await publicClient.waitForTransactionReceipt({ hash })
+    log(`Round #${roundId}: resolved ✓`)
   } catch (err) {
     log(`Round #${roundId}: resolve failed — ${(err as Error).message}`)
   }

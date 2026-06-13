@@ -11,7 +11,7 @@ export const CONTRACTS = {
   Leaderboard:           process.env.NEXT_PUBLIC_LEADERBOARD_ADDRESS             ?? ZERO,
   AgentRegistry:         process.env.NEXT_PUBLIC_AGENT_REGISTRY_ADDRESS          ?? ZERO,
   GauntletLeaderboard:   process.env.NEXT_PUBLIC_GAUNTLET_LEADERBOARD_ADDRESS    ?? ZERO,
-  AgentNFT:              process.env.NEXT_PUBLIC_AGENT_NFT_ADDRESS               ?? '0xC2C31D896407fEEb852ABE420282c06cbd22e8a6',
+  AgentNFT:              process.env.NEXT_PUBLIC_AGENT_NFT_ADDRESS               ?? '0x044b0D6Fdc2Ab10560217B6353A2d5812592e6a2',
   BattleResultNFT:       process.env.NEXT_PUBLIC_BATTLE_RESULT_NFT_ADDRESS      ?? '0xACfF9D86f8Ca2496f2e6b353ddEdA5155a58e1B2',
 } as const
 

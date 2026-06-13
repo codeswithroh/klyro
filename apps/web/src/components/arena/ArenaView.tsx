@@ -216,7 +216,15 @@ function SettlementToast({ humanWon, humanCall, agentCall, outcome, deltaText, t
 interface FrozenResult { roundId: bigint; outcome: boolean; startPriceHuman: number; closePriceHuman: number }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } = {}) {
+export function ArenaView({
+  gauntletMode       = false,
+  gauntletRoundKey   = 0,      // increments on each new gauntlet round → resets chart history
+  gauntletStartPrice = null as number | null,  // real Hermes price at gauntlet round start
+}: {
+  gauntletMode?:       boolean
+  gauntletRoundKey?:   number
+  gauntletStartPrice?: number | null
+} = {}) {
   // gauntletMode=true forces mock path regardless of CONTRACTS_LIVE
   // forceMock is set when the user clicks "Start Xs Round" from the idle panel —
   // it overrides isLive so the mock path handles all display + round logic.
@@ -235,14 +243,27 @@ export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } =
   const { data: pythData } = usePythPrice(asset)
   const livePrice = pythData?.price ?? null
 
-  // Accumulate live price history
+  // Accumulate live price history — for both on-chain mode AND gauntlet mode
   const [liveHistory, setLiveHistory] = useState<PricePoint[]>([])
   const liveRef                        = useRef<PricePoint[]>([])
   const prevPriceRound                 = useRef<bigint | null>(null)
 
+  // Clear history when a new gauntlet round starts; seed with real start price
+  // so the chart never shows the fake simulator prices.
+  // Both gauntletStartPrice and gauntletRoundKey are set together (React 18 batching),
+  // so gauntletStartPrice is already the new value when this effect fires.
   useEffect(() => {
-    if (!isLive || livePrice === null) return
-    if (chainRound?.roundId && chainRound.roundId !== prevPriceRound.current) {
+    if (!gauntletMode) return
+    const seed = gauntletStartPrice
+    const initial: PricePoint[] = seed ? [{ t: Date.now(), price: seed }] : []
+    liveRef.current = initial
+    setLiveHistory(initial)
+  }, [gauntletRoundKey]) // eslint-disable-line
+
+  useEffect(() => {
+    if ((!isLive && !gauntletMode) || livePrice === null) return
+    // For live on-chain mode: reset when roundId changes
+    if (isLive && chainRound?.roundId && chainRound.roundId !== prevPriceRound.current) {
       liveRef.current = []
       prevPriceRound.current = chainRound.roundId
     }
@@ -347,6 +368,25 @@ export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } =
     }
   }, [chainRound?.roundId, resultShown])
 
+  // New round open → trigger Axiom-7 bot prediction via server-side API route.
+  // The API uses the bot private key (server-only) to call lockPrediction on-chain
+  // so pollBotPrediction can find the call without needing a separate bot process.
+  const botApiTriggered = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    if (!isLive || !chainRound?.isOpen) return
+    const key = chainRound.roundId.toString()
+    if (botApiTriggered.current.has(key)) return
+    botApiTriggered.current.add(key)
+    fetch('/api/bot-predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        roundId: chainRound.roundId.toString(),
+        feedId: chainRound.priceFeedId,
+      }),
+    }).catch(() => { /* best-effort — UI still works if bot fails */ })
+  }, [isLive, chainRound?.isOpen, chainRound?.roundId]) // eslint-disable-line
+
   // ── Handlers ──────────────────────────────────────────────────────────────
   // Ref to abort the bot-poll when the round ends / component unmounts
   const botPollAbort = useRef<AbortController | null>(null)
@@ -370,7 +410,12 @@ export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } =
         if (!abort.signal.aborted && botCall !== null) setAgentCall(botCall)
       })
     } else {
-      makeMockCall(call)
+      if (gauntletMode) {
+        // Gauntlet: pass ETH feedId so store calls /api/bot-signal for real prediction
+        makeMockCall(call, PRICE_FEEDS['ETH/USD'])
+      } else {
+        makeMockCall(call)
+      }
     }
   }
 
@@ -420,7 +465,10 @@ export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } =
 
   // ── Derived display values ────────────────────────────────────────────────
   const displayAsset       = isLive ? asset : mockAsset
-  const displayPrice       = isLive && livePrice !== null ? formatPrice(asset, livePrice) : mockFormattedPrice
+  // Gauntlet mode uses real Hermes price for display (livePrice) not the simulator
+  const displayPrice       = livePrice !== null && (isLive || gauntletMode)
+    ? formatPrice('ETH/USD', livePrice)
+    : mockFormattedPrice
   const displaySecondsLeft = isLive ? (chainRound?.secondsLeft ?? 0) : mockSecondsLeft
   const displayTotal       = isLive ? (chainRound?.totalDuration ?? selectedDuration) : mockTotalSeconds
   const displayRoundId     = isLive ? Number(chainRound?.roundId ?? 0) : mockRoundId
@@ -429,15 +477,28 @@ export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } =
   const displayIsOpen      = isLive ? (chainRound?.isOpen ?? false) : (mockPhase === 'open')
   const displayIsResolved  = isLive ? (chainRound?.resolved ?? false) : (mockPhase === 'resolved')
 
-  const chartHistory: PricePoint[] = isLive && liveHistory.length > 1
-    ? liveHistory : mockPriceHistory
+  // Gauntlet: always use real liveHistory (seeded with start price, never fake simulator prices).
+  // Live arena: use liveHistory when 2+ points, else mock. Pure mock mode: always mockPriceHistory.
+  const chartHistory: PricePoint[] = isLive
+    ? (liveHistory.length > 1 ? liveHistory : mockPriceHistory)
+    : gauntletMode
+      ? liveHistory   // always real — seeded at round start, accumulates from Hermes
+      : mockPriceHistory
+  // Gauntlet: use the real Hermes start price passed from ChallengeView as the baseline marker
   const chartStartPrice = isLive
     ? chainRound?.startPriceHuman
-    : (mockPhase === 'open' ? mockStartPrice : undefined)
+    : gauntletMode && gauntletStartPrice
+      ? gauntletStartPrice
+      : (mockPhase === 'open' ? mockStartPrice : undefined)
 
   let deltaFromStart = ''; let deltaPos = true
   if (isLive && chainRound && livePrice !== null) {
     const pct = ((livePrice - chainRound.startPriceHuman) / chainRound.startPriceHuman) * 100
+    deltaPos = pct >= 0
+    deltaFromStart = `${pct >= 0 ? '+' : ''}${pct.toFixed(3)}%`
+  } else if (gauntletMode && gauntletStartPrice && livePrice !== null && mockPhase === 'open') {
+    // Gauntlet: compute delta vs real Hermes start price
+    const pct = ((livePrice - gauntletStartPrice) / gauntletStartPrice) * 100
     deltaPos = pct >= 0
     deltaFromStart = `${pct >= 0 ? '+' : ''}${pct.toFixed(3)}%`
   } else if (!isLive && mockPhase === 'open') {
@@ -758,33 +819,63 @@ export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } =
               )}
             </div>
 
-            {/* HIGHER / LOWER buttons */}
-            <div className="grid grid-cols-2 gap-2.5">
-              <button
-                onClick={() => handleCall('up')}
-                disabled={isLive && !isConnected}
-                className="flex flex-col items-center py-5 rounded-xl transition-all active:scale-[.95] disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ background: 'rgba(16,185,129,0.10)',
-                  border: '1px solid rgba(16,185,129,0.30)',
-                  color: '#10b981',
-                  boxShadow: 'inset 0 0 20px rgba(16,185,129,0.05)' }}>
-                <span className="text-[26px] leading-none mb-1">▲</span>
-                <span className="font-display font-black text-[15px] uppercase tracking-[0.02em]">Higher</span>
-                <small className="font-mono text-[9px] opacity-55 tracking-[.06em] mt-0.5 normal-case">price rises</small>
-              </button>
-              <button
-                onClick={() => handleCall('down')}
-                disabled={isLive && !isConnected}
-                className="flex flex-col items-center py-5 rounded-xl transition-all active:scale-[.95] disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ background: 'rgba(244,63,94,0.10)',
-                  border: '1px solid rgba(244,63,94,0.30)',
-                  color: '#f43f5e',
-                  boxShadow: 'inset 0 0 20px rgba(244,63,94,0.05)' }}>
-                <span className="text-[26px] leading-none mb-1">▼</span>
-                <span className="font-display font-black text-[15px] uppercase tracking-[0.02em]">Lower</span>
-                <small className="font-mono text-[9px] opacity-55 tracking-[.06em] mt-0.5 normal-case">price falls</small>
-              </button>
-            </div>
+            {/* HIGHER / LOWER buttons — hidden once a gauntlet/mock call is locked in */}
+            {isLive || !mockHumanCall ? (
+              <div className="grid grid-cols-2 gap-2.5">
+                <button
+                  onClick={() => handleCall('up')}
+                  disabled={isLive && !isConnected}
+                  className="flex flex-col items-center py-5 rounded-xl transition-all active:scale-[.95] disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{ background: 'rgba(16,185,129,0.10)',
+                    border: '1px solid rgba(16,185,129,0.30)',
+                    color: '#10b981',
+                    boxShadow: 'inset 0 0 20px rgba(16,185,129,0.05)' }}>
+                  <span className="text-[26px] leading-none mb-1">▲</span>
+                  <span className="font-display font-black text-[15px] uppercase tracking-[0.02em]">Higher</span>
+                  <small className="font-mono text-[9px] opacity-55 tracking-[.06em] mt-0.5 normal-case">price rises</small>
+                </button>
+                <button
+                  onClick={() => handleCall('down')}
+                  disabled={isLive && !isConnected}
+                  className="flex flex-col items-center py-5 rounded-xl transition-all active:scale-[.95] disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{ background: 'rgba(244,63,94,0.10)',
+                    border: '1px solid rgba(244,63,94,0.30)',
+                    color: '#f43f5e',
+                    boxShadow: 'inset 0 0 20px rgba(244,63,94,0.05)' }}>
+                  <span className="text-[26px] leading-none mb-1">▼</span>
+                  <span className="font-display font-black text-[15px] uppercase tracking-[0.02em]">Lower</span>
+                  <small className="font-mono text-[9px] opacity-55 tracking-[.06em] mt-0.5 normal-case">price falls</small>
+                </button>
+              </div>
+            ) : (
+              /* Mock/Gauntlet call is locked — no changing it */
+              <div>
+                <div className="mb-3 px-4 py-3 rounded-xl border"
+                  style={{
+                    borderColor: mockHumanCall === 'up' ? 'rgba(16,185,129,0.4)' : 'rgba(244,63,94,0.4)',
+                    background:  mockHumanCall === 'up' ? 'rgba(16,185,129,0.08)' : 'rgba(244,63,94,0.08)',
+                  }}>
+                  <div className="font-mono text-[10px] text-white/35 uppercase tracking-[.1em] mb-1">Your call · locked</div>
+                  <div className="font-display font-black text-[18px]"
+                    style={{ color: mockHumanCall === 'up' ? '#10b981' : '#f43f5e' }}>
+                    {mockHumanCall === 'up' ? '▲ HIGHER' : '▼ LOWER'}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-white/[0.07] bg-white/[0.03]">
+                  <div className="w-6 h-6 rounded-md grid place-items-center font-display font-black text-[10px] text-white shrink-0"
+                    style={{ background: 'linear-gradient(135deg, #6C2BF2, #9A6BFF)' }}>AX</div>
+                  <div className="flex-1 font-mono text-[11px]">
+                    {mockAgentCall ? (
+                      <span style={{ color: mockAgentCall === 'up' ? '#10b981' : '#f43f5e', fontWeight: 600 }}>
+                        {mockAgentCall === 'up' ? '▲ HIGHER' : '▼ LOWER'}
+                      </span>
+                    ) : (
+                      <span className="text-white/30 italic">Axiom-7 is thinking…</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

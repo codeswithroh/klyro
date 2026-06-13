@@ -44,8 +44,8 @@ export function usePythPrice(pair: AssetPair) {
   return useQuery({
     queryKey: ['pyth-price', feedId],
     queryFn: () => fetchPythPrice(feedId),
-    refetchInterval: 3_000,   // poll every 3s — Pyth updates ~400ms on-chain, 3s is fine for display
-    staleTime: 2_000,
+    refetchInterval: 1_000,   // poll every 1s — matches mock simulation speed; Hermes handles it fine
+    staleTime: 800,
     retry: 3,
   })
 }

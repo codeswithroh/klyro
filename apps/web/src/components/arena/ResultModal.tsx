@@ -9,6 +9,8 @@ import { CONTRACTS } from '@/lib/contracts/addresses'
 import { BATTLE_RESULT_NFT_ABI } from '@/lib/contracts/abis'
 import { createPublicClient, http } from 'viem'
 import type { Call } from '@/lib/store/roundStore'
+import { Wordmark } from '@/components/ui/Wordmark'
+import Link from 'next/link'
 
 const twChain = defineChain({
   id: mantleSepolia.id,
@@ -497,10 +499,15 @@ export function ResultModal({
           transition: 'transform 0.45s cubic-bezier(0.34,1.56,0.64,1)',
         }}>
 
-        {/* Breadcrumb */}
-        <div className="font-mono text-[10px] uppercase tracking-[.18em] mb-7"
-          style={{ color: 'var(--ink-3)' }}>
-          Arena Battle · Round #{Number(roundId)}
+        {/* Top bar: logo home link + breadcrumb */}
+        <div className="flex items-center justify-between mb-7">
+          <Link href="/" aria-label="Home">
+            <Wordmark size={20} />
+          </Link>
+          <div className="font-mono text-[10px] uppercase tracking-[.18em]"
+            style={{ color: 'var(--ink-3)' }}>
+            Arena Battle · Round #{Number(roundId)}
+          </div>
         </div>
 
         {/* ── Hero card ── */}
