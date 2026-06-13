@@ -24,13 +24,12 @@ import {
   prepareContractCall,
   getContract,
   waitForReceipt,
-  readContract,
 } from 'thirdweb'
 import { useActiveAccount } from 'thirdweb/react'
 import { defineChain } from 'thirdweb'
-import { createPublicClient, http, decodeEventLog } from 'viem'
+import { createPublicClient, http, decodeEventLog, encodeAbiParameters, parseAbiParameters } from 'viem'
 import { thirdwebClient } from '../contracts/thirdweb-client'
-import { CONTRACTS, AGENT_WALLET, PYTH_ADDRESS } from '../contracts/addresses'
+import { CONTRACTS, AGENT_WALLET } from '../contracts/addresses'
 import { ROUND_MANAGER_ABI, PREDICTION_REGISTRY_ABI } from '../contracts/abis'
 import { mantleSepolia } from '../contracts/chain'
 import type { Call } from '../store/roundStore'
@@ -43,24 +42,27 @@ const twChain = defineChain({
 
 const HERMES_BASE = 'https://hermes.pyth.network/v2/updates/price/latest'
 
-const PYTH_FEE_ABI = [
-  {
-    type: 'function',
-    name: 'getUpdateFee',
-    inputs: [{ name: 'updateData', type: 'bytes[]', internalType: 'bytes[]' }],
-    outputs: [{ name: 'feeAmount', type: 'uint256', internalType: 'uint256' }],
-    stateMutability: 'view',
-  },
-] as const
+interface HermesPrice { rawPrice: bigint; conf: bigint; expo: number }
 
-async function fetchFreshVAA(feedId: string): Promise<`0x${string}`[]> {
-  const url = `${HERMES_BASE}?ids[]=${feedId}&encoding=hex`
+async function fetchHermesPrice(feedId: string): Promise<HermesPrice> {
+  const url = `${HERMES_BASE}?ids[]=${feedId}&encoding=hex&parsed=true`
   const res = await fetch(url)
   if (!res.ok) throw new Error(`Hermes fetch failed: ${res.status}`)
   const data = await res.json()
-  const vaas: string[] = data.binary?.data ?? []
-  if (vaas.length === 0) throw new Error('No VAA returned from Hermes')
-  return vaas.map((v) => (v.startsWith('0x') ? v : `0x${v}`) as `0x${string}`)
+  const parsed = data.parsed?.[0]
+  if (!parsed) throw new Error('No parsed price from Hermes')
+  return {
+    rawPrice: BigInt(parsed.price.price),
+    conf:     BigInt(parsed.price.conf),
+    expo:     parsed.price.expo as number,
+  }
+}
+
+function encodeMockPythUpdate(feedId: string, price: HermesPrice): `0x${string}` {
+  return encodeAbiParameters(
+    parseAbiParameters('bytes32, int64, uint64, int32'),
+    [feedId as `0x${string}`, price.rawPrice, price.conf, price.expo],
+  )
 }
 
 // viem public client — used for fresh contract reads (no thirdweb cache)
@@ -173,35 +175,17 @@ export function useResolveRound() {
     })
 
     try {
-      // Fetch a fresh VAA so resolveRoundWithPrice can push an up-to-date
-      // price on-chain before settling. resolveRound() (no price) reverts
-      // with StalePrice for the same reason openRound() does — no active
-      // pusher on Mantle Sepolia keeps the feed fresh.
-      setStatus('Fetching price update…')
-      const updateData = await fetchFreshVAA(_priceFeedId)
-
-      // Get the Pyth update fee
-      const pythContract = getContract({
-        client: thirdwebClient,
-        chain: twChain,
-        address: PYTH_ADDRESS as `0x${string}`,
-        abi: PYTH_FEE_ABI,
-      })
-      let updateFee: bigint = 1n
-      try {
-        updateFee = await readContract({
-          contract: pythContract,
-          method: 'getUpdateFee',
-          params: [updateData],
-        })
-      } catch { updateFee = 1n }
+      // Fetch live price from Hermes and encode for MockPyth
+      setStatus('Fetching live price…')
+      const hermesPrice = await fetchHermesPrice(_priceFeedId)
+      const updateData  = [encodeMockPythUpdate(_priceFeedId, hermesPrice)]
 
       setStatus('Settling round…')
       const tx = prepareContractCall({
         contract: rmContract,
         method: 'function resolveRoundWithPrice(bytes[] updateData, uint256 roundId) payable',
         params: [updateData, roundId],
-        value: updateFee,
+        value: 0n,  // MockPyth fee is 0
         gas: BigInt(300_000),
       })
       const result = await sendTransaction({ transaction: tx, account })

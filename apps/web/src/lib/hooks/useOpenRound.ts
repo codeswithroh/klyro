@@ -3,24 +3,26 @@
 /**
  * useOpenRound — opens a round via RoundManager.openRoundWithPrice.
  *
- * Strategy: always fetch a fresh VAA from Pyth Hermes right before submitting,
- * then call openRoundWithPrice so the tx atomically pushes the fresh price
- * on-chain and opens the round in one shot.
+ * Price oracle: MockPyth (deployed 2026-06-13 at NEXT_PUBLIC_PYTH_ADDRESS).
+ * The real Pyth v32 on Mantle Sepolia doesn't support the new accumulator
+ * format (PNAU) emitted by Hermes. We use MockPyth instead, which accepts
+ * a simple abi.encode(bytes32 feedId, int64 price, uint64 conf, int32 expo)
+ * per updateData element.
  *
- * openRound (no price) fails whenever the on-chain Pyth feed is stale
- * (getPriceNoOlderThan reverts). There is no active pusher on Mantle Sepolia,
- * so the stored price goes stale quickly. Pushing our own VAA from Hermes
- * is the correct fix.
- *
- * The Pyth update fee on Mantle Sepolia testnet is 1 wei per update.
+ * Flow:
+ *   1. Fetch live price from Pyth Hermes REST (rawPrice + expo)
+ *   2. abi.encode into MockPyth's updateData format
+ *   3. Call openRoundWithPrice(updateData, feedId, duration, {value: 0})
+ *   4. waitForReceipt — throws on revert so the caller's catch fires
  */
 
 import { useState } from 'react'
-import { sendTransaction, prepareContractCall, getContract, waitForReceipt, readContract } from 'thirdweb'
+import { sendTransaction, prepareContractCall, getContract, waitForReceipt } from 'thirdweb'
 import { useActiveAccount } from 'thirdweb/react'
 import { defineChain } from 'thirdweb'
+import { encodeAbiParameters, parseAbiParameters } from 'viem'
 import { thirdwebClient } from '../contracts/thirdweb-client'
-import { CONTRACTS, PRICE_FEEDS, PYTH_ADDRESS, type AssetPair } from '../contracts/addresses'
+import { CONTRACTS, PRICE_FEEDS, type AssetPair } from '../contracts/addresses'
 import { ROUND_MANAGER_ABI } from '../contracts/abis'
 import { mantleSepolia } from '../contracts/chain'
 
@@ -32,32 +34,46 @@ const twChain = defineChain({
   nativeCurrency: mantleSepolia.nativeCurrency,
 })
 
-// Minimal ABI fragment to call pyth.getUpdateFee(bytes[] updateData)
-const PYTH_FEE_ABI = [
-  {
-    type: 'function',
-    name: 'getUpdateFee',
-    inputs: [{ name: 'updateData', type: 'bytes[]', internalType: 'bytes[]' }],
-    outputs: [{ name: 'feeAmount', type: 'uint256', internalType: 'uint256' }],
-    stateMutability: 'view',
-  },
-] as const
+interface HermesPrice {
+  rawPrice: bigint
+  conf:     bigint
+  expo:     number
+}
 
-async function fetchFreshVAA(feedId: string): Promise<`0x${string}`[]> {
-  const url = `${HERMES_BASE}?ids[]=${feedId}&encoding=hex`
+async function fetchHermesPrice(feedId: string): Promise<HermesPrice> {
+  const url = `${HERMES_BASE}?ids[]=${feedId}&encoding=hex&parsed=true`
   const res = await fetch(url)
   if (!res.ok) throw new Error(`Hermes fetch failed: ${res.status}`)
   const data = await res.json()
-  const vaas: string[] = data.binary?.data ?? []
-  if (vaas.length === 0) throw new Error('No VAA returned from Hermes')
-  // Ensure 0x prefix
-  return vaas.map((v) => (v.startsWith('0x') ? v : `0x${v}`) as `0x${string}`)
+  const parsed = data.parsed?.[0]
+  if (!parsed) throw new Error('No parsed price from Hermes')
+  return {
+    rawPrice: BigInt(parsed.price.price),
+    conf:     BigInt(parsed.price.conf),
+    expo:     parsed.price.expo as number,
+  }
+}
+
+/**
+ * Encode price data in MockPyth's format:
+ *   abi.encode(bytes32 feedId, int64 price, uint64 conf, int32 expo)
+ */
+function encodeMockPythUpdate(feedId: string, price: HermesPrice): `0x${string}` {
+  return encodeAbiParameters(
+    parseAbiParameters('bytes32, int64, uint64, int32'),
+    [
+      feedId as `0x${string}`,
+      price.rawPrice,
+      price.conf,
+      price.expo,
+    ],
+  )
 }
 
 export function useOpenRound() {
   const account = useActiveAccount()
   const [isOpening, setIsOpening] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError]   = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
 
   async function openRound(asset: AssetPair = 'ETH/USD', durationSeconds = 60) {
@@ -68,33 +84,17 @@ export function useOpenRound() {
     try {
       const feedId = PRICE_FEEDS[asset]
 
-      // 1. Fetch a fresh VAA from Hermes right before the tx
-      setStatus('Fetching price update…')
-      const updateData = await fetchFreshVAA(feedId)
+      // 1. Fetch live price from Hermes
+      setStatus('Fetching live price…')
+      const hermesPrice = await fetchHermesPrice(feedId)
 
-      // 2. Get the Pyth update fee (1 wei on testnet, but ask the contract to be safe)
-      const pythContract = getContract({
-        client: thirdwebClient,
-        chain: twChain,
-        address: PYTH_ADDRESS as `0x${string}`,
-        abi: PYTH_FEE_ABI,
-      })
-      let updateFee: bigint = 1n
-      try {
-        updateFee = await readContract({
-          contract: pythContract,
-          method: 'getUpdateFee',
-          params: [updateData],
-        })
-      } catch {
-        // fallback to 1 wei if the fee call fails (testnet default)
-        updateFee = 1n
-      }
+      // 2. Encode as MockPyth update (no VAA needed)
+      const updateData = [encodeMockPythUpdate(feedId, hermesPrice)]
 
-      // 3. Call openRoundWithPrice — atomically pushes price + opens round
+      // 3. Call openRoundWithPrice — fee is 0 on MockPyth
       const rmContract = getContract({
         client: thirdwebClient,
-        chain: twChain,
+        chain:  twChain,
         address: CONTRACTS.RoundManager as `0x${string}`,
         abi: ROUND_MANAGER_ABI as any,
       })
@@ -104,7 +104,7 @@ export function useOpenRound() {
         contract: rmContract,
         method: 'function openRoundWithPrice(bytes[] updateData, bytes32 priceFeedId, uint256 durationSeconds) payable returns (uint256 roundId)',
         params: [updateData, feedId as `0x${string}`, BigInt(durationSeconds)],
-        value: updateFee,
+        value: 0n,  // MockPyth fee is 0
       })
 
       const result = await sendTransaction({ transaction: openTx, account })
@@ -126,16 +126,16 @@ export function useOpenRound() {
     } catch (e) {
       const msg = (e as Error).message ?? ''
       if (msg.toLowerCase().includes('hermes')) {
-        setError('Could not fetch price update — check your connection')
-      } else if (msg.toLowerCase().includes('reverted')) {
-        setError('Transaction reverted — try again')
+        setError('Could not fetch live price — check connection and retry')
       } else if (msg.toLowerCase().includes('user rejected') || msg.toLowerCase().includes('user denied')) {
         setError('Transaction cancelled')
+      } else if (msg.toLowerCase().includes('reverted')) {
+        setError('Transaction reverted — try again')
       } else {
         setError(msg.slice(0, 120) || 'Transaction failed')
       }
       setStatus(null)
-      throw e  // re-throw so ArenaView's catch clears waitingOpen
+      throw e  // re-throw so ArenaView catch clears waitingOpen
     } finally {
       setIsOpening(false)
     }
