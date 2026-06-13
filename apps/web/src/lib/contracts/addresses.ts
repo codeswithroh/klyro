@@ -6,12 +6,13 @@ const ZERO = '0x0000000000000000000000000000000000000000'
 export const MANTLE_SEPOLIA_CHAIN_ID = 5003
 
 export const CONTRACTS = {
-  RoundManager:        process.env.NEXT_PUBLIC_ROUND_MANAGER_ADDRESS        ?? ZERO,
-  PredictionRegistry:  process.env.NEXT_PUBLIC_PREDICTION_REGISTRY_ADDRESS  ?? ZERO,
-  Leaderboard:         process.env.NEXT_PUBLIC_LEADERBOARD_ADDRESS          ?? ZERO,
-  AgentRegistry:       process.env.NEXT_PUBLIC_AGENT_REGISTRY_ADDRESS       ?? ZERO,
-  AgentNFT:            process.env.NEXT_PUBLIC_AGENT_NFT_ADDRESS            ?? '0xC2C31D896407fEEb852ABE420282c06cbd22e8a6',
-  BattleResultNFT:     process.env.NEXT_PUBLIC_BATTLE_RESULT_NFT_ADDRESS   ?? '0xACfF9D86f8Ca2496f2e6b353ddEdA5155a58e1B2',
+  RoundManager:          process.env.NEXT_PUBLIC_ROUND_MANAGER_ADDRESS           ?? ZERO,
+  PredictionRegistry:    process.env.NEXT_PUBLIC_PREDICTION_REGISTRY_ADDRESS     ?? ZERO,
+  Leaderboard:           process.env.NEXT_PUBLIC_LEADERBOARD_ADDRESS             ?? ZERO,
+  AgentRegistry:         process.env.NEXT_PUBLIC_AGENT_REGISTRY_ADDRESS          ?? ZERO,
+  GauntletLeaderboard:   process.env.NEXT_PUBLIC_GAUNTLET_LEADERBOARD_ADDRESS    ?? ZERO,
+  AgentNFT:              process.env.NEXT_PUBLIC_AGENT_NFT_ADDRESS               ?? '0xC2C31D896407fEEb852ABE420282c06cbd22e8a6',
+  BattleResultNFT:       process.env.NEXT_PUBLIC_BATTLE_RESULT_NFT_ADDRESS      ?? '0xACfF9D86f8Ca2496f2e6b353ddEdA5155a58e1B2',
 } as const
 
 // Axiom-7 bot wallet — used to read its actual on-chain prediction

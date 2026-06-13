@@ -16,8 +16,10 @@
  */
 
 import { useState, useEffect } from 'react'
+import { useActiveAccount } from 'thirdweb/react'
 import { useRoundStore, type Call } from '@/lib/store/roundStore'
 import { classifyBattle, calcPoints, getDurationMultiplier } from '@/components/arena/ResultModal'
+import { useSubmitGauntletScore } from '@/lib/hooks/useSubmitGauntletScore'
 import { ArenaView } from '@/components/arena/ArenaView'
 import Link from 'next/link'
 
@@ -211,6 +213,10 @@ function FinalReport({
   const ringFill   = humanScore / totalRounds
   const winRatePct = Math.round((humanScore / totalRounds) * 100)
 
+  const account   = useActiveAccount()
+  const isConnected = !!account
+  const { submitScore, status: submitStatus, txHash: submitTxHash, error: submitError } = useSubmitGauntletScore()
+
   const BASE_URL  = typeof window !== 'undefined' ? window.location.origin : 'https://klyro.xyz'
   const shareText = humanWon
     ? `I just beat Axiom-7 AI ${humanScore}-${agentScore} in ${DIFFICULTY_CONFIG[difficulty].label} (${roundDuration}s rounds) on @KlyroHQ! Earned ${totalPts} pts · Badge: ${matchBadge.icon} ${matchBadge.label}. #Klyro #Mantle #HumanVsAI`
@@ -383,6 +389,45 @@ function FinalReport({
             </svg>
             Share result on X
           </a>
+
+          {/* ── Submit Score on-chain ── */}
+          {submitStatus === 'confirmed' && submitTxHash ? (
+            <a
+              href={`https://sepolia.mantlescan.xyz/tx/${submitTxHash}`}
+              target="_blank" rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-mono text-[12px] font-bold uppercase tracking-[.07em] transition-opacity hover:opacity-80"
+              style={{ background: 'var(--sig-wash)', color: 'var(--sig)', border: '1px solid rgba(108,43,242,0.3)' }}>
+              ✓ Score on Mantle — View Tx ↗
+            </a>
+          ) : (
+            <button
+              disabled={!isConnected || submitStatus === 'pending' || submitStatus === 'confirming'}
+              onClick={() => submitScore({
+                wins:         humanScore,
+                losses:       agentScore,
+                totalRounds:  totalRounds,
+                durationSecs: roundDuration,
+              })}
+              className="w-full py-3.5 rounded-xl font-mono font-bold text-[12px] uppercase tracking-[.07em] transition-all active:scale-[.97] disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: 'rgba(108,43,242,0.10)', color: 'var(--sig)', border: '1px solid rgba(108,43,242,0.3)' }}>
+              {!isConnected
+                ? '🔗 Connect Wallet to Submit Score'
+                : submitStatus === 'pending'
+                ? 'Waiting for wallet…'
+                : submitStatus === 'confirming'
+                ? 'Confirming on Mantle…'
+                : submitStatus === 'error'
+                ? '⚠ Failed — Tap to Retry'
+                : '⛓ Submit Score to Chain'}
+            </button>
+          )}
+
+          {submitError && submitStatus === 'error' && (
+            <div className="font-mono text-[10px] leading-tight px-3 py-2 rounded-lg"
+              style={{ background: 'rgba(244,63,94,0.08)', color: '#f43f5e' }}>
+              {submitError}
+            </div>
+          )}
 
           <button onClick={onRematch}
             className="w-full py-3.5 rounded-xl font-mono font-bold text-[13px] uppercase tracking-[.08em] text-white transition-all active:scale-[.97]"
