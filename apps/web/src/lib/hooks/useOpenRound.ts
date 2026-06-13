@@ -7,10 +7,15 @@
  * so openRound (reads stored price) works reliably. openRoundWithPrice
  * (pushes VAA + opens) consistently reverts because our VAA is never
  * newer than what Pyth already has stored.
+ *
+ * IMPORTANT: we call waitForReceipt after sendTransaction so that
+ * on-chain reverts surface as thrown errors. Without it, sendTransaction
+ * resolves as soon as the tx hits the mempool — reverts are invisible,
+ * and the UI hangs on the "Opening round…" spinner forever.
  */
 
 import { useState } from 'react'
-import { sendTransaction, prepareContractCall, getContract } from 'thirdweb'
+import { sendTransaction, prepareContractCall, getContract, waitForReceipt } from 'thirdweb'
 import { useActiveAccount } from 'thirdweb/react'
 import { defineChain } from 'thirdweb'
 import { thirdwebClient } from '../contracts/thirdweb-client'
@@ -23,7 +28,6 @@ const twChain = defineChain({
   rpc: mantleSepolia.rpcUrls.default.http[0],
   nativeCurrency: mantleSepolia.nativeCurrency,
 })
-
 
 export function useOpenRound() {
   const account = useActiveAccount()
@@ -46,25 +50,43 @@ export function useOpenRound() {
         abi: ROUND_MANAGER_ABI as any,
       })
 
-      // openRoundWithPrice is unreliable on Mantle Sepolia — Pyth's own pusher
-      // keeps the on-chain price fresh, so our VAA is always rejected as stale.
-      // Call openRound directly which reads the already-stored Pyth price.
-      setStatus('Opening round…')
+      setStatus('Sending transaction…')
       const openTx = prepareContractCall({
         contract: rmContract,
         method: 'function openRound(bytes32 priceFeedId, uint256 durationSeconds) returns (uint256 roundId)',
         params: [feedId as `0x${string}`, BigInt(durationSeconds)],
       })
-      await sendTransaction({ transaction: openTx, account })
+
+      // sendTransaction resolves at mempool submission — NOT confirmation.
+      // We must waitForReceipt so reverts are thrown and the caller's catch block fires.
+      const result = await sendTransaction({ transaction: openTx, account })
+      const hash = (result as any)?.transactionHash as `0x${string}` | undefined
+
+      if (hash) {
+        setStatus('Confirming on Mantle…')
+        const receipt = await waitForReceipt({
+          transactionHash: hash,
+          client: thirdwebClient,
+          chain: twChain,
+        })
+        // status 0 = reverted
+        if (receipt.status === 'reverted') {
+          throw new Error('Transaction reverted on-chain')
+        }
+      }
+
       setStatus(null)
     } catch (e) {
       const msg = (e as Error).message ?? ''
       if (msg.includes('0x19abf40e') || msg.toLowerCase().includes('staleprice')) {
         setError('Price feed stale — try again in a moment')
+      } else if (msg.toLowerCase().includes('reverted')) {
+        setError('Transaction reverted — price may be stale, try again')
       } else {
-        setError(msg.slice(0, 120) ?? 'Unknown error')
+        setError(msg.slice(0, 120) || 'Transaction failed')
       }
       setStatus(null)
+      throw e  // re-throw so handleStartRound's catch fires and clears waitingOpen
     } finally {
       setIsOpening(false)
     }

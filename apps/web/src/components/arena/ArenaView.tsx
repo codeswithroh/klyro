@@ -301,6 +301,14 @@ export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } =
     if (chainRound?.isOpen && waitingOpen) setWaitingOpen(false)
   }, [chainRound?.isOpen, waitingOpen])
 
+  // Safety escape: if we've been waiting 90 s and the round still hasn't
+  // opened, bail out so the user isn't stuck on the spinner forever.
+  useEffect(() => {
+    if (!waitingOpen) return
+    const t = setTimeout(() => setWaitingOpen(false), 90_000)
+    return () => clearTimeout(t)
+  }, [waitingOpen])
+
   // Mock round resolved → trigger full ResultModal (same as Gauntlet final report)
   // gauntletMode: skip — ChallengeView owns the result flow there
   useEffect(() => {
@@ -711,13 +719,33 @@ export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } =
         {/* ── WAITING OPEN ── */}
         {ps === 'waitingOpen' && (
           <div className="p-5 flex flex-col items-center gap-4">
-            <div className="w-9 h-9 rounded-full border-2 border-[#6C2BF2] border-t-transparent animate-spin" />
-            <div className="font-mono text-[11px] text-white/45 uppercase tracking-[.1em] text-center">
-              {openStatus ?? 'Opening round on-chain…'}
-            </div>
-            <div className="font-mono text-[9px] text-white/20 text-center">
-              Waiting for transaction to confirm
-            </div>
+            {openError ? (
+              <>
+                <div className="text-[22px]">⚠️</div>
+                <div className="font-mono text-[11px] text-[#f43f5e] uppercase tracking-[.08em] text-center">
+                  Transaction failed
+                </div>
+                <div className="font-mono text-[9px] text-white/30 text-center leading-relaxed max-w-[180px]">
+                  {openError}
+                </div>
+                <button
+                  onClick={() => { setWaitingOpen(false) }}
+                  className="mt-1 font-mono text-[11px] font-semibold uppercase tracking-[.08em] px-4 py-2 rounded-lg transition-colors"
+                  style={{ background: 'rgba(108,43,242,0.15)', color: '#9A6BFF', border: '1px solid rgba(108,43,242,0.3)' }}>
+                  ← Try again
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="w-9 h-9 rounded-full border-2 border-[#6C2BF2] border-t-transparent animate-spin" />
+                <div className="font-mono text-[11px] text-white/45 uppercase tracking-[.1em] text-center">
+                  {openStatus ?? 'Opening round on-chain…'}
+                </div>
+                <div className="font-mono text-[9px] text-white/20 text-center">
+                  Waiting for transaction to confirm
+                </div>
+              </>
+            )}
           </div>
         )}
 
