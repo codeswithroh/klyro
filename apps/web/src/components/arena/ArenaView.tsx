@@ -28,7 +28,6 @@ import { useActiveAccount }           from 'thirdweb/react'
 import { useQueryClient }             from '@tanstack/react-query'
 import { createPublicClient, http }   from 'viem'
 import { usePythPrice }               from '@/lib/hooks/usePythPrice'
-import { useLockPrediction }          from '@/lib/hooks/useRound'
 import { useChainRound, CONTRACTS_LIVE } from '@/lib/hooks/useChainRound'
 import { useOpenRound }               from '@/lib/hooks/useOpenRound'
 import { useResolveRound }            from '@/lib/hooks/useResolveRound'
@@ -252,7 +251,8 @@ export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } =
   }, [livePrice]) // eslint-disable-line
 
   // On-chain hooks
-  const { lockPrediction, isPending, isConfirming, isConfirmed, txHash, error: txError } = useLockPrediction()
+  // lockPrediction removed — prediction is now submitted inside resolveRoundWithPrediction
+  // to eliminate the openRound→lockPrediction nonce race condition.
   const { openRound, isOpening, status: openStatus, error: openError } = useOpenRound()
   const { resolveRound, isResolving, error: resolveError, status: resolveStatus } = useResolveRound()
 
@@ -288,13 +288,7 @@ export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } =
   const makeMockCall       = useRoundStore(s => s.makeCall)
   const resetMock          = useRoundStore(s => s.resetToIdle)
 
-  // Tx status message
-  useEffect(() => {
-    if (isPending)         setTxMsg('Sending transaction…')
-    else if (isConfirming) setTxMsg('Confirming on-chain…')
-    else if (isConfirmed)  setTxMsg('Confirmed ✓')
-    else if (txError)      setTxMsg('Transaction failed')
-  }, [isPending, isConfirming, isConfirmed, txError])
+  // txMsg is set directly in handleCall now (no separate tx to track)
 
   // When round opens after user started one, clear waitingOpen
   useEffect(() => {
@@ -357,32 +351,24 @@ export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } =
   // Ref to abort the bot-poll when the round ends / component unmounts
   const botPollAbort = useRef<AbortController | null>(null)
 
-  async function handleCall(call: Call) {
+  function handleCall(call: Call) {
     if (humanCall !== null) return
     if (isLive) {
       if (!isConnected || !chainRound?.isOpen) return
+      // Store call locally — no on-chain tx here.
+      // The prediction is submitted together with resolveRoundWithPrediction
+      // at settlement time to avoid the openRound→lockPrediction nonce race.
       setHumanCall(call)
+      setTxMsg('Call locked — waiting for round to close…')
 
-      // Start polling for the bot's REAL on-chain prediction.
-      // Aborts any previous poll and keeps agentCall null ("Thinking…")
-      // until the bot's tx is confirmed on-chain.
+      // Start polling for the bot's on-chain prediction in the background
       botPollAbort.current?.abort()
       const abort = new AbortController()
       botPollAbort.current = abort
       const roundId = chainRound.roundId
       pollBotPrediction(roundId, abort.signal, selectedDuration).then(botCall => {
-        if (!abort.signal.aborted && botCall !== null) {
-          setAgentCall(botCall)
-        }
+        if (!abort.signal.aborted && botCall !== null) setAgentCall(botCall)
       })
-
-      try {
-        await lockPrediction(chainRound.roundId, call === 'up')
-      } catch (e: unknown) {
-        const msg = (e as Error).message ?? ''
-        if (msg.includes('AlreadyPredicted')) setTxMsg('Already predicted this round')
-        else { setTxMsg('Transaction failed'); setHumanCall(null) }
-      }
     } else {
       makeMockCall(call)
     }
@@ -401,10 +387,10 @@ export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } =
   }
 
   async function handleSettle() {
-    if (!chainRound) return
+    if (!chainRound || humanCall === null) return
     const startPriceHuman = chainRound.startPriceHuman
     try {
-      const data = await resolveRound(chainRound.roundId, chainRound.priceFeedId)
+      const data = await resolveRound(chainRound.roundId, chainRound.priceFeedId, humanCall === 'up')
       if (data) {
         // Update agentCall with the real on-chain prediction (was previously random)
         if (data.agentCall !== null) setAgentCall(data.agentCall)
@@ -895,13 +881,6 @@ export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } =
               AX-7: {displayAgentCall === 'up' ? '▲ Higher' : '▼ Lower'}
             </div>
 
-            {isLive && txHash && (
-              <a href={`https://sepolia.mantlescan.xyz/tx/${txHash}`}
-                target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-1.5 font-mono text-[10px] text-white/25 hover:text-white/50 uppercase tracking-[.08em] mb-4 transition-colors">
-                ▦ View on Mantle ↗
-              </a>
-            )}
 
             <button
               onClick={isLive ? handlePlayAgain : resetMock}
@@ -922,7 +901,6 @@ export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } =
           agentCall={displayAgentCall ?? (resOutcome === 'up' ? 'down' : 'up')}
           outcome={resOutcome}
           deltaText={resDelta}
-          txHash={isLive ? txHash : undefined}
           onDismiss={() => setShowToast(false)}
           onPlayAgain={isLive ? handlePlayAgain : resetMock}
         />
@@ -938,7 +916,6 @@ export function ArenaView({ gauntletMode = false }: { gauntletMode?: boolean } =
           startPrice={frozenResult.startPriceHuman}
           closePrice={frozenResult.closePriceHuman}
           roundId={frozenResult.roundId}
-          txHash={isLive ? txHash : undefined}
           duration={displayTotal}
           onPlayAgain={handlePlayAgain}
         />

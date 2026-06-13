@@ -103,6 +103,44 @@ contract RoundManager {
         emit PredictionLocked(roundId, msg.sender, isUp);
     }
 
+    /// @notice Settle a round AND record the caller's prediction in one tx.
+    /// @dev This is the primary user-facing settle path. The caller's UP/DOWN
+    ///      choice is stored in the browser during the round (no on-chain tx),
+    ///      then submitted here together with the close-price push and resolution.
+    ///      Eliminates the openRound→lockPrediction nonce race.
+    ///      The round must be closed (past closeTime) before calling.
+    function resolveRoundWithPrediction(
+        bytes[] calldata updateData,
+        uint256 roundId,
+        bool isUp
+    ) external payable {
+        pyth.updatePriceFeeds{value: msg.value}(updateData);
+
+        Round storage r = rounds[roundId];
+        if (block.timestamp < r.closeTime) revert RoundNotClosed();
+        if (r.resolved) revert AlreadyResolved();
+
+        // Record caller's prediction if not already on-chain
+        if (!registry.hasPredicted(roundId, msg.sender)) {
+            registry.record(roundId, msg.sender, isUp);
+            emit PredictionLocked(roundId, msg.sender, isUp);
+        }
+
+        PythPrice memory p = pyth.getPriceNoOlderThan(r.priceFeedId, 120);
+        bool outcome = p.price > r.startPrice;
+
+        r.closePrice = p.price;
+        r.resolved   = true;
+        r.outcome    = outcome;
+
+        (address[] memory players, bool[] memory calls) = registry.getPredictions(roundId);
+        for (uint256 i = 0; i < players.length; i++) {
+            leaderboard.recordResult(players[i], calls[i] == outcome);
+        }
+
+        emit RoundResolved(roundId, p.price, outcome);
+    }
+
     /// @notice Resolves a round in a single tx by first refreshing the Pyth price.
     /// @dev Send msg.value = Pyth fee (1 wei on testnet). Lets the frontend user
     ///      settle rounds without relying on the bot wallet.

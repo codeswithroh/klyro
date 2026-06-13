@@ -161,6 +161,7 @@ export function useResolveRound() {
   async function resolveRound(
     roundId: bigint,
     _priceFeedId: `0x${string}`,
+    humanIsUp: boolean,        // stored locally during round, submitted here
   ): Promise<ResolvedRoundData | null> {
     if (!account) { setError('Connect your wallet first'); return null }
     setIsResolving(true)
@@ -175,18 +176,20 @@ export function useResolveRound() {
     })
 
     try {
-      // Fetch live price from Hermes and encode for MockPyth
+      // Fetch live close price from Hermes and encode for MockPyth
       setStatus('Fetching live price…')
       const hermesPrice = await fetchHermesPrice(_priceFeedId)
       const updateData  = [encodeMockPythUpdate(_priceFeedId, hermesPrice)]
 
+      // resolveRoundWithPrediction: push price + record call + resolve in ONE tx
+      // This avoids the nonce race between openRound and lockPrediction.
       setStatus('Settling round…')
       const tx = prepareContractCall({
         contract: rmContract,
-        method: 'function resolveRoundWithPrice(bytes[] updateData, uint256 roundId) payable',
-        params: [updateData, roundId],
-        value: 0n,  // MockPyth fee is 0
-        gas: BigInt(300_000),
+        method: 'function resolveRoundWithPrediction(bytes[] updateData, uint256 roundId, bool isUp) payable',
+        params: [updateData, roundId, humanIsUp],
+        value: 0n,
+        gas: BigInt(400_000),
       })
       const result = await sendTransaction({ transaction: tx, account })
       const receipt = await waitForReceipt({ ...result, client: thirdwebClient, chain: twChain })
