@@ -81,6 +81,7 @@ export interface ResolvedRoundData {
   outcome: boolean      // true = price went UP
   closePrice: bigint    // raw int64 from contract (divide by 1e8 for USD)
   agentCall: Call | null
+  txHash?: string       // settlement tx hash (undefined if bot resolved first)
 }
 
 // Parse RoundResolved event from receipt logs
@@ -215,7 +216,7 @@ export function useResolveRound() {
       const agentCall = await readAgentCall(roundId)
       setStatus(null)
       setResolved(true)
-      return { roundId, outcome, closePrice, agentCall }
+      return { roundId, outcome, closePrice, agentCall, txHash: result.transactionHash }
 
     } catch (e: unknown) {
       const msg = (e as Error).message ?? ''

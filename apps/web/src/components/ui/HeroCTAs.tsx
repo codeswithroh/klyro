@@ -10,22 +10,8 @@
 
 import { useRouter } from 'next/navigation'
 import { useActiveAccount, useConnectModal } from 'thirdweb/react'
-import { createWallet, inAppWallet } from 'thirdweb/wallets'
 import { thirdwebClient } from '@/lib/contracts/thirdweb-client'
-import { defineChain } from 'thirdweb'
-import { mantleSepolia } from '@/lib/contracts/chain'
-
-const twChain = defineChain({
-  id: mantleSepolia.id,
-  rpc: mantleSepolia.rpcUrls.default.http[0],
-  nativeCurrency: mantleSepolia.nativeCurrency,
-})
-
-const wallets = [
-  createWallet('io.metamask'),
-  createWallet('com.coinbase.wallet'),
-  inAppWallet({ auth: { options: ['email', 'google', 'apple'] } }),
-]
+import { twChain, wallets } from '@/lib/contracts/wallets'
 
 function useGatedNav() {
   const router      = useRouter()
@@ -50,21 +36,24 @@ function useGatedNav() {
 // ── Hero buttons (Arena / Gauntlet / Leaderboard) ────────────────────────────
 
 export function HeroCTAs() {
-  const nav = useGatedNav()
+  const nav    = useGatedNav()
+  const router = useRouter()
 
   return (
     <div className="mt-8 flex gap-3 flex-wrap">
+      {/* Arena is on-chain — connect first */}
       <button
         onClick={() => nav('/arena')}
         className="font-mono font-semibold text-[13px] tracking-[.04em] uppercase bg-sig text-white px-5 py-3.5 rounded-full shadow-sig transition-transform active:translate-y-px cursor-pointer">
         Enter the arena →
       </button>
 
+      {/* Gauntlet is off-chain — play instantly as a guest, no wallet */}
       <button
-        onClick={() => nav('/challenge')}
+        onClick={() => router.push('/challenge')}
         className="font-mono font-semibold text-[13px] tracking-[.04em] uppercase px-5 py-3.5 rounded-full border transition-transform active:translate-y-px cursor-pointer"
         style={{ background: 'rgba(108,43,242,0.12)', borderColor: 'rgba(108,43,242,0.35)', color: '#9A6BFF' }}>
-        ⚔️ Gauntlet Mode
+        ⚔️ Play as guest
       </button>
 
       {/* Leaderboard is public — no wallet needed */}

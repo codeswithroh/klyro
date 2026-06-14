@@ -1,0 +1,130 @@
+---
+title: "Klyro"
+tagline: "Out-predict the machine. The Turing Test, settled on-chain."
+hackathon: "Mantle Turing Test Hackathon 2026 — Phase II: AI Awakening"
+track: "Consumer & Viral DApps"
+network: "Mantle Sepolia (Chain ID 5003)"
+liveApp: "https://playklyro.fun"
+repo: "https://github.com/codeswithroh/klyro"
+---
+
+# Klyro
+
+> **Out-predict the machine.** Klyro is a fast, social prediction game where humans go head to head against an autonomous AI agent, and every call is settled on-chain. It is the first live, verifiable benchmark of human judgment versus machine judgment, running on Mantle.
+
+**Live app:** https://playklyro.fun
+**Live AI benchmark:** https://playklyro.fun/benchmark
+**Axiom-7 agent identity (ERC-8004):** https://playklyro.fun/agents/axiom-7
+
+## Vision
+
+Klyro wants to become the open, on-chain proving ground where human and machine intelligence are measured against each other in public, starting with the markets and expanding to every domain that can be scored. If AI agents are going to make real decisions in the real economy, the world needs a neutral, verifiable place that answers a simple question: are they actually better than us, and by how much. Klyro is building that scoreboard.
+
+## The problem
+
+AI agents are flooding on-chain finance, and every one of them claims an edge. But there is no neutral, public, tamper proof way to measure whether an agent is actually good, or how it stacks up against a human. Performance lives in private dashboards and screenshots that anyone can fake. The Mantle Turing Test Hackathon set out to change that by benchmarking AI agent performance on-chain at scale. Klyro is a consumer product built directly on that idea.
+
+## What Klyro is
+
+You pick a direction on ETH/USD, higher or lower, for a short window. So does Axiom-7, an autonomous AI agent. A real Pyth Network price decides the outcome when the window closes, and a smart contract on Mantle settles the result. The human and the AI are scored side by side, and both results are recorded on-chain forever.
+
+There are three ways to play:
+
+- **Arena.** A single on-chain round, you versus Axiom-7. Both predictions and the result are written to Mantle. This is the mode that feeds the on-chain benchmark and the agent's reputation.
+- **Gauntlet.** A best of three or best of five series against Axiom-7 with live Pyth prices, then your match score is submitted on-chain to the Gauntlet leaderboard.
+- **Daily Challenge.** One shared challenge per day, the same matchup for everyone, with a streak to keep alive. Playable with no wallet at all. This is the habit loop that brings players back.
+
+## How Klyro maps to the three pillars of the hackathon
+
+Mantle defined three signature features for this hackathon. Klyro is built around all three.
+
+### 1. On-chain benchmarking of AI
+
+Every Arena round writes both the human's and Axiom-7's up or down call to an on-chain Prediction Registry, then settles win or loss into an on-chain Leaderboard. The result is a permanent, public record of AI versus human performance that anyone can independently verify. No private dashboards, no screenshots, no trust required.
+
+### 2. ERC-8004 agent identity
+
+Axiom-7 holds a soulbound ERC-8004 identity NFT minted on Mantle. Its name, strategy, win rate, streak, and full prediction history are read live from the on-chain Leaderboard, so its reputation updates automatically every single time a round settles. The NFT even renders a fully on-chain SVG, so the agent's identity and stats are self contained on the blockchain.
+
+### 3. Radical transparency
+
+The benchmark page is a live Humanity versus Axiom-7 scoreboard that reads straight from Mantle and refreshes every few seconds. Anyone can watch the AI's on-chain win rate move as rounds settle, and every settlement is one tap from the block explorer.
+
+## Meet Axiom-7
+
+Axiom-7 is an autonomous, contrarian prediction agent with its own execution wallet and on-chain identity. It does not mirror the human's view of the chart. It runs an independent multi signal strategy on live Pyth and Hermes data:
+
+- Mean reversion, weighted heaviest, which fades strong recent moves while humans chase momentum.
+- A volatility regime signal that leans down in high volatility fear and up in quiet drift.
+- A short term oscillator that reads overbought and oversold conditions from recent ticks.
+
+The agent submits its predictions server side from its own wallet. In Arena it calls the contract directly so its prediction is recorded on-chain before the round settles. In Gauntlet it returns a real, market derived direction for the off-chain series.
+
+## How a round works
+
+1. A round opens. The starting price is pushed on-chain from Pyth.
+2. The human taps higher or lower. The choice is stored in the browser.
+3. Axiom-7 locks its own prediction on-chain.
+4. The window closes. A contract reads the live closing price from Pyth.
+5. The contract records both calls, scores them, and settles win or loss into the Leaderboard.
+6. The ERC-8004 identity NFT reflects the agent's new reputation, and the live benchmark updates.
+
+A note on the oracle. Prices are the real Pyth Network ETH/USD feed pulled from Hermes. Because the canonical Pyth contract on Mantle Sepolia rejected our on-chain update payloads, we route the real Hermes price through a Pyth compatible adapter that exposes the identical interface to the round manager. The prices are real, only the on-chain delivery path is adapted.
+
+## Frictionless by design
+
+We built Klyro so a brand new player can experience the whole loop without any of the usual Web3 friction.
+
+- **Play as a guest.** Gauntlet and the Daily Challenge need no wallet and no gas at all. You tap once and you are playing.
+- **No faucet.** When a social login wallet connects to play the on-chain Arena, a server side drip funds it with a small amount of MNT automatically, so the user never has to find a faucet. Wallets that already hold funds are skipped.
+- **Social login.** Email, Google, or Apple via an embedded wallet, no seed phrase shown.
+- **Save your progress on-chain.** Guests can connect at the moment it matters, right when they want to save a score or a streak.
+
+## Tech stack
+
+- **Frontend:** Next.js 14 App Router, Tailwind, mobile first.
+- **Chain interaction:** viem, wagmi v2, thirdweb v5.
+- **Wallet:** thirdweb in app wallet with email, Google, and Apple login, plus external wallets.
+- **Oracle:** Pyth Network ETH/USD via Hermes, delivered on-chain through a Pyth compatible adapter.
+- **AI agent:** server side Next.js API routes signing from the agent's own wallet.
+- **Agent identity:** ERC-8004 soulbound NFT with an on-chain SVG and live reputation.
+- **Contracts:** Foundry, Solidity 0.8.24.
+- **Network:** Mantle Sepolia, Chain ID 5003.
+- **Hosting:** Vercel.
+
+## Deployed contracts (Mantle Sepolia, Chain ID 5003)
+
+| Contract | Address | Purpose |
+| --- | --- | --- |
+| RoundManager | `0xFCb16aF770E8461AD36F9F5776Fb5555d66a99b5` | Opens rounds, records predictions, resolves against Pyth, settles scores |
+| PredictionRegistry | `0xB9E8a7c53b610135D7355A238F0361be5247C4e0` | Records each player and the AI's up or down call per round |
+| Leaderboard | `0xd7BD1DD79Bc6b83214E2E452572b3dd515EcC841` | Cumulative points, win or loss, streaks, the single source of truth for reputation |
+| AgentNFT (ERC-8004) | `0x044b0D6Fdc2Ab10560217B6353A2d5812592e6a2` | Soulbound agent identity with live stats and on-chain SVG |
+| AgentRegistry | `0xC2c8A75b2635499202A0da0bFe7C7fF0bEAAD644` | Maps ERC-8004 identities to agent wallets |
+| GauntletLeaderboard | `0xF699b21BF843d7F74457CbEE377c55108B7f7F40` | Records best of N match results |
+| BattleResultNFT | `0xACfF9D86f8Ca2496f2e6b353ddEdA5155a58e1B2` | Mintable NFT of a battle result card |
+| Pyth adapter (MockPyth) | `0xd4C8e113b8F3BA78258147ae9E2485b36f240780` | Accepts real Hermes prices, exposes the Pyth interface |
+
+**Axiom-7 agent wallet:** `0xC557BBc3351B1CcbbDa556b8001736beb28A7A0B` (ERC-8004 token number 0)
+
+Explorer base: https://explorer.sepolia.mantle.xyz
+
+## Why this fits the Consumer & Viral DApps track
+
+Klyro is a gamified, shareable consumer app built on a Human versus AI mechanism, which is exactly what the track asks for. It is one tap to start, it has a daily habit loop and streaks for retention, it produces shareable result cards, and underneath the fun it is doing something no consumer app has done before, running a live and verifiable Human versus AI benchmark on-chain.
+
+## Roadmap
+
+- Friend duels, where a shareable link drops a friend into the exact same daily challenge.
+- A roster of competing AI agents, each with its own ERC-8004 identity and an ELO style ladder, including a near unbeatable boss agent.
+- Seasons and leagues with soft resets so newcomers always have a reachable ladder.
+- A Telegram mini app so Klyro lives where users already are.
+- Skill based tournaments and prize pools as the monetization path, keeping the experience about skill rather than pure chance.
+
+## Links
+
+- **Live app:** https://playklyro.fun
+- **Live benchmark:** https://playklyro.fun/benchmark
+- **Axiom-7 identity:** https://playklyro.fun/agents/axiom-7
+- **GitHub:** https://github.com/codeswithroh/klyro
+- **Network:** Mantle Sepolia, Chain ID 5003

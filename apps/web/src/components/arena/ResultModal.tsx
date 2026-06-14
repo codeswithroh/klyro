@@ -9,8 +9,7 @@ import { CONTRACTS } from '@/lib/contracts/addresses'
 import { BATTLE_RESULT_NFT_ABI } from '@/lib/contracts/abis'
 import { createPublicClient, http } from 'viem'
 import type { Call } from '@/lib/store/roundStore'
-import { Wordmark } from '@/components/ui/Wordmark'
-import Link from 'next/link'
+import { Nav } from '@/components/ui/Nav'
 
 const twChain = defineChain({
   id: mantleSepolia.id,
@@ -493,21 +492,19 @@ export function ResultModal({
       {/* Confetti / rain canvas — sits above paper bg, below content */}
       <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }} />
 
+      {/* Full site nav so users can navigate away from the result page freely */}
+      <Nav />
+
       <div className="relative z-10 max-w-[540px] mx-auto px-5 pt-8 pb-16"
         style={{
           transform: mounted ? 'translateY(0)' : 'translateY(32px)',
           transition: 'transform 0.45s cubic-bezier(0.34,1.56,0.64,1)',
         }}>
 
-        {/* Top bar: logo home link + breadcrumb */}
-        <div className="flex items-center justify-between mb-7">
-          <Link href="/" aria-label="Home">
-            <Wordmark size={20} />
-          </Link>
-          <div className="font-mono text-[10px] uppercase tracking-[.18em]"
-            style={{ color: 'var(--ink-3)' }}>
-            Arena Battle · Round #{Number(roundId)}
-          </div>
+        {/* Breadcrumb */}
+        <div className="font-mono text-[10px] uppercase tracking-[.18em] mb-7"
+          style={{ color: 'var(--ink-3)' }}>
+          Arena Battle · Round #{Number(roundId)}
         </div>
 
         {/* ── Hero card ── */}
@@ -660,21 +657,22 @@ export function ResultModal({
             </a>
           )}
 
+          {/* On-chain settlement — transparency: view the actual resolve tx */}
+          {txHash && (
+            <a href={`${EXPLORER}/tx/${txHash}`}
+              target="_blank" rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-mono text-[12px] font-bold uppercase tracking-[.07em] transition-opacity hover:opacity-80"
+              style={{ background: 'var(--sig-wash)', color: 'var(--sig)', border: '1px solid rgba(108,43,242,0.3)' }}>
+              ⛓ View on-chain settlement ↗
+            </a>
+          )}
+
           {/* Play Again — sig purple like Gauntlet rematch button */}
           <button onClick={onPlayAgain}
             className="w-full py-3.5 rounded-xl font-mono font-bold text-[13px] uppercase tracking-[.08em] text-white transition-all active:scale-[.97]"
             style={{ background: 'var(--sig)', boxShadow: '0 4px 20px rgba(108,43,242,0.35)' }}>
             {ctaLabel}
           </button>
-
-          {txHash && (
-            <a href={`https://sepolia.mantlescan.xyz/tx/${txHash}`}
-              target="_blank" rel="noopener noreferrer"
-              className="flex items-center justify-center gap-1.5 font-mono text-[10px] uppercase tracking-[.08em] pb-1 transition-opacity hover:opacity-70"
-              style={{ color: 'var(--ink-3)' }}>
-              ▦ View on Mantle ↗
-            </a>
-          )}
         </div>
 
       </div>

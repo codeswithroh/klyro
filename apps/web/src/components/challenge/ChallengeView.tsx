@@ -16,10 +16,13 @@
  */
 
 import { useState, useEffect, useRef } from 'react'
-import { useActiveAccount } from 'thirdweb/react'
+import { useActiveAccount, useConnectModal } from 'thirdweb/react'
+import { thirdwebClient } from '@/lib/contracts/thirdweb-client'
+import { twChain, wallets } from '@/lib/contracts/wallets'
 import { useRoundStore, type Call } from '@/lib/store/roundStore'
 import { classifyBattle, calcPoints, getDurationMultiplier } from '@/components/arena/ResultModal'
 import { useSubmitGauntletScore } from '@/lib/hooks/useSubmitGauntletScore'
+import { ensureGas } from '@/lib/ensureGas'
 import { ArenaView } from '@/components/arena/ArenaView'
 import Link from 'next/link'
 
@@ -28,7 +31,7 @@ import Link from 'next/link'
 type Difficulty   = 'best-of-3' | 'best-of-5'
 type ChallengePhase = 'pick' | 'playing' | 'between' | 'final'
 
-interface RoundRecord {
+export interface RoundRecord {
   roundNum:  number
   humanCall: Call
   agentCall: Call
@@ -215,21 +218,31 @@ function FinalReport({
 
   const account   = useActiveAccount()
   const isConnected = !!account
+  const { connect } = useConnectModal()
   const { submitScore, status: submitStatus, txHash: submitTxHash, error: submitError } = useSubmitGauntletScore()
 
-  // Auto-submit on mount — no manual button needed
+  const handleConnectToSave = () => {
+    connect({ client: thirdwebClient, chain: twChain, wallets }).catch(() => {})
+  }
+
+  // Auto-submit the score on-chain once a wallet is connected. Fires on mount
+  // if already connected, OR the moment a guest connects from the report screen.
+  // First tops up the wallet with gas (no faucet needed), then submits.
   useEffect(() => {
     if (!isConnected || submitStatus !== 'idle') return
-    const t = setTimeout(() => {
+    let cancelled = false
+    ;(async () => {
+      await ensureGas(account?.address)   // resolves once dust MNT has landed
+      if (cancelled) return
       submitScore({
         wins:         humanScore,
         losses:       agentScore,
         totalRounds,
         durationSecs: roundDuration,
       })
-    }, 600)
-    return () => clearTimeout(t)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    })()
+    return () => { cancelled = true }
+  }, [isConnected]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const BASE_URL  = typeof window !== 'undefined' ? window.location.origin : 'https://klyro.xyz'
   const shareText = humanWon
@@ -421,10 +434,12 @@ function FinalReport({
               ⚠ Failed to Submit — Tap to Retry
             </button>
           ) : !isConnected ? (
-            <div className="w-full py-3 rounded-xl font-mono text-[11px] text-center"
-              style={{ background: 'rgba(108,43,242,0.06)', color: 'var(--ink-3)', border: '1px solid rgba(108,43,242,0.15)' }}>
-              🔗 Connect wallet to record score on-chain
-            </div>
+            <button
+              onClick={handleConnectToSave}
+              className="w-full py-3.5 rounded-xl font-mono font-bold text-[12px] uppercase tracking-[.07em] text-white transition-all active:scale-[.97]"
+              style={{ background: 'var(--sig)', boxShadow: '0 4px 16px rgba(108,43,242,0.3)' }}>
+              🔗 Connect to save your score on-chain
+            </button>
           ) : (
             <div className="w-full py-3.5 rounded-xl font-mono text-[12px] text-center"
               style={{ background: 'rgba(108,43,242,0.08)', color: 'var(--sig)', border: '1px solid rgba(108,43,242,0.2)' }}>
@@ -477,9 +492,17 @@ async function fetchRealEthPrice(): Promise<number | null> {
   }
 }
 
-export function ChallengeView() {
-  const [difficulty,          setDifficulty]          = useState<Difficulty>('best-of-3')
-  const [roundDuration,       setRoundDuration]        = useState(30)
+export function ChallengeView({
+  dailyMode   = false,
+  dailyConfig,
+  onComplete,
+}: {
+  dailyMode?:   boolean
+  dailyConfig?: { difficulty: Difficulty; duration: number }
+  onComplete?:  (r: { humanScore: number; agentScore: number; records: RoundRecord[] }) => void
+} = {}) {
+  const [difficulty,          setDifficulty]          = useState<Difficulty>(dailyConfig?.difficulty ?? 'best-of-3')
+  const [roundDuration,       setRoundDuration]        = useState(dailyConfig?.duration ?? 30)
   const [challengePhase,      setChallengePhase]       = useState<ChallengePhase>('pick')
   const [records,             setRecords]              = useState<RoundRecord[]>([])
   const [humanScore,          setHumanScore]           = useState(0)
@@ -596,9 +619,39 @@ export function ChallengeView() {
     setChallengePhase('pick')
   }
 
+  // ── Daily mode: auto-start (skip picker) and report completion to parent ────
+  const dailyStarted   = useRef(false)
+  const dailyCompleted = useRef(false)
+
+  useEffect(() => {
+    if (!dailyMode || dailyStarted.current) return
+    dailyStarted.current = true
+    handleStart()
+  }, [dailyMode]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!dailyMode || challengePhase !== 'final' || dailyCompleted.current) return
+    dailyCompleted.current = true
+    onComplete?.({ humanScore, agentScore, records })
+  }, [challengePhase]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Difficulty picker ──────────────────────────────────────────────────────
 
   if (challengePhase === 'pick') {
+    // In daily mode there's no picker — show a brief loader until the first
+    // round opens (handleStart fetches the live price, then flips to 'playing').
+    if (dailyMode) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center gap-4"
+          style={{ background: 'var(--paper)' }}>
+          <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin"
+            style={{ borderColor: 'var(--sig)', borderTopColor: 'transparent' }} />
+          <div className="font-mono text-[12px] tracking-[.12em] uppercase" style={{ color: 'var(--ink-3)' }}>
+            Loading today&apos;s challenge…
+          </div>
+        </div>
+      )
+    }
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-4 py-16"
         style={{ background: 'var(--paper)' }}>
@@ -773,6 +826,9 @@ export function ChallengeView() {
   // ── Final report ───────────────────────────────────────────────────────────
 
   if (challengePhase === 'final') {
+    // Daily mode hands the completion screen to the parent (DailyChallengeView),
+    // which owns streak tracking + the share card.
+    if (dailyMode) return null
     return (
       <FinalReport
         records={records}

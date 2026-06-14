@@ -15,6 +15,7 @@ export function Nav() {
 
         <div className="hidden md:flex gap-1">
           {[
+            { href: '/daily', label: 'Daily' },
             { href: '/arena', label: 'Arena' },
             { href: '/challenge', label: 'Gauntlet' },
             { href: '/benchmark', label: 'Benchmark' },

@@ -32,6 +32,7 @@ import { useChainRound, CONTRACTS_LIVE } from '@/lib/hooks/useChainRound'
 import { useOpenRound }               from '@/lib/hooks/useOpenRound'
 import { useResolveRound }            from '@/lib/hooks/useResolveRound'
 import { useRoundStore, type Call, type PricePoint } from '@/lib/store/roundStore'
+import { ensureGas } from '@/lib/ensureGas'
 import { useIdlePriceTick }           from '@/lib/hooks/useIdlePriceTick'
 import { useRoundTimer }              from '@/lib/hooks/useRoundTimer'
 import { getDurationMultiplier }      from './ResultModal'
@@ -213,7 +214,7 @@ function SettlementToast({ humanWon, humanCall, agentCall, outcome, deltaText, t
 }
 
 // ── Frozen snapshot of resolved round ────────────────────────────────────────
-interface FrozenResult { roundId: bigint; outcome: boolean; startPriceHuman: number; closePriceHuman: number }
+interface FrozenResult { roundId: bigint; outcome: boolean; startPriceHuman: number; closePriceHuman: number; txHash?: string }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 export function ArenaView({
@@ -371,6 +372,18 @@ export function ArenaView({
   // New round open → trigger Axiom-7 bot prediction via server-side API route.
   // The API uses the bot private key (server-only) to call lockPrediction on-chain
   // so pollBotPrediction can find the call without needing a separate bot process.
+  // Top up a freshly-connected wallet with a little MNT so social-login users
+  // can pay for Arena transactions without visiting a faucet. Server-side
+  // /api/gas-drip skips wallets that already hold funds.
+  const drippedWallets = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    if (!isLive || !account?.address) return
+    const addr = account.address
+    if (drippedWallets.current.has(addr)) return
+    drippedWallets.current.add(addr)
+    ensureGas(addr)
+  }, [isLive, account?.address])
+
   const botApiTriggered = useRef<Set<string>>(new Set())
   useEffect(() => {
     if (!isLive || !chainRound?.isOpen) return
@@ -444,6 +457,7 @@ export function ArenaView({
           outcome:         data.outcome,
           startPriceHuman: startPriceHuman,
           closePriceHuman: Number(data.closePrice) / 1e8,
+          txHash:          data.txHash,
         })
         setTimeout(() => { setResultShown(true); setShowToast(true) }, 900)
       }
@@ -1007,6 +1021,7 @@ export function ArenaView({
           startPrice={frozenResult.startPriceHuman}
           closePrice={frozenResult.closePriceHuman}
           roundId={frozenResult.roundId}
+          txHash={frozenResult.txHash}
           duration={displayTotal}
           onPlayAgain={handlePlayAgain}
         />

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import '../styles/globals.css'
 import { Providers } from '@/components/ui/Providers'
 import { Nav } from '@/components/ui/Nav'
+import { FaucetButton } from '@/components/ui/FaucetButton'
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <Nav />
           <main>{children}</main>
+          <FaucetButton />
         </Providers>
       </body>
     </html>
