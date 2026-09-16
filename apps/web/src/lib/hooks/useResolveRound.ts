@@ -32,6 +32,7 @@ import { thirdwebClient } from '../contracts/thirdweb-client'
 import { CONTRACTS, AGENT_WALLET } from '../contracts/addresses'
 import { ROUND_MANAGER_ABI, PREDICTION_REGISTRY_ABI } from '../contracts/abis'
 import { mantleSepolia } from '../contracts/chain'
+import { fetchLivePrice, type LivePrice } from '../priceFeed'
 import type { Call } from '../store/roundStore'
 
 const twChain = defineChain({
@@ -40,25 +41,7 @@ const twChain = defineChain({
   nativeCurrency: mantleSepolia.nativeCurrency,
 })
 
-const HERMES_BASE = 'https://hermes.pyth.network/v2/updates/price/latest'
-
-interface HermesPrice { rawPrice: bigint; conf: bigint; expo: number }
-
-async function fetchHermesPrice(feedId: string): Promise<HermesPrice> {
-  const url = `${HERMES_BASE}?ids[]=${feedId}&encoding=hex&parsed=true`
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`Hermes fetch failed: ${res.status}`)
-  const data = await res.json()
-  const parsed = data.parsed?.[0]
-  if (!parsed) throw new Error('No parsed price from Hermes')
-  return {
-    rawPrice: BigInt(parsed.price.price),
-    conf:     BigInt(parsed.price.conf),
-    expo:     parsed.price.expo as number,
-  }
-}
-
-function encodeMockPythUpdate(feedId: string, price: HermesPrice): `0x${string}` {
+function encodeMockPythUpdate(feedId: string, price: LivePrice): `0x${string}` {
   return encodeAbiParameters(
     parseAbiParameters('bytes32, int64, uint64, int32'),
     [feedId as `0x${string}`, price.rawPrice, price.conf, price.expo],
@@ -177,10 +160,10 @@ export function useResolveRound() {
     })
 
     try {
-      // Fetch live close price from Hermes and encode for MockPyth
+      // Fetch live close price and encode for MockPyth
       setStatus('Fetching live price…')
-      const hermesPrice = await fetchHermesPrice(_priceFeedId)
-      const updateData  = [encodeMockPythUpdate(_priceFeedId, hermesPrice)]
+      const livePrice  = await fetchLivePrice(_priceFeedId)
+      const updateData = [encodeMockPythUpdate(_priceFeedId, livePrice)]
 
       // resolveRoundWithPrediction: push price + record call + resolve in ONE tx
       // This avoids the nonce race between openRound and lockPrediction.

@@ -6,11 +6,11 @@ const ZERO = '0x0000000000000000000000000000000000000000'
 export const MANTLE_SEPOLIA_CHAIN_ID = 5003
 
 export const CONTRACTS = {
-  RoundManager:          process.env.NEXT_PUBLIC_ROUND_MANAGER_ADDRESS           ?? ZERO,
-  PredictionRegistry:    process.env.NEXT_PUBLIC_PREDICTION_REGISTRY_ADDRESS     ?? ZERO,
-  Leaderboard:           process.env.NEXT_PUBLIC_LEADERBOARD_ADDRESS             ?? ZERO,
-  AgentRegistry:         process.env.NEXT_PUBLIC_AGENT_REGISTRY_ADDRESS          ?? ZERO,
-  GauntletLeaderboard:   process.env.NEXT_PUBLIC_GAUNTLET_LEADERBOARD_ADDRESS    ?? ZERO,
+  RoundManager:          process.env.NEXT_PUBLIC_ROUND_MANAGER_ADDRESS           ?? '0xFCb16aF770E8461AD36F9F5776Fb5555d66a99b5',
+  PredictionRegistry:    process.env.NEXT_PUBLIC_PREDICTION_REGISTRY_ADDRESS     ?? '0xB9E8a7c53b610135D7355A238F0361be5247C4e0',
+  Leaderboard:           process.env.NEXT_PUBLIC_LEADERBOARD_ADDRESS             ?? '0xd7BD1DD79Bc6b83214E2E452572b3dd515EcC841',
+  AgentRegistry:         process.env.NEXT_PUBLIC_AGENT_REGISTRY_ADDRESS          ?? '0xC2c8A75b2635499202A0da0bFe7C7fF0bEAAD644',
+  GauntletLeaderboard:   process.env.NEXT_PUBLIC_GAUNTLET_LEADERBOARD_ADDRESS    ?? '0xF699b21BF843d7F74457CbEE377c55108B7f7F40',
   AgentNFT:              process.env.NEXT_PUBLIC_AGENT_NFT_ADDRESS               ?? '0x044b0D6Fdc2Ab10560217B6353A2d5812592e6a2',
   BattleResultNFT:       process.env.NEXT_PUBLIC_BATTLE_RESULT_NFT_ADDRESS      ?? '0xACfF9D86f8Ca2496f2e6b353ddEdA5155a58e1B2',
 } as const
@@ -19,9 +19,11 @@ export const CONTRACTS = {
 export const AGENT_WALLET = process.env.NEXT_PUBLIC_AGENT_WALLET
   ?? '0xC557BBc3351B1CcbbDa556b8001736beb28A7A0B'
 
-// Pyth Network on Mantle Sepolia
+// MockPyth (IPyth adapter) on Mantle Sepolia — accepts real Hermes prices.
+// The canonical Pyth v32 contract (0x98046Bd...) cannot parse Hermes' current
+// accumulator (PNAU) update format and is permanently stale; do not fall back to it.
 export const PYTH_ADDRESS = process.env.NEXT_PUBLIC_PYTH_ADDRESS
-  ?? '0x98046Bd286715D3B0BC227Dd7a956b83D8978603'
+  ?? '0xd4C8e113b8F3BA78258147ae9E2485b36f240780'
 
 // Pyth price feed IDs (verified at https://pyth.network/developers/price-feed-ids)
 export const PRICE_FEEDS = {

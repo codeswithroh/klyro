@@ -25,7 +25,7 @@
  *     that diverges from user calls even when both are "rational".
  */
 
-const HERMES_BASE = 'https://hermes.pyth.network/v2/updates/price/latest'
+import { fetchLivePrice } from './priceFeed.js'
 
 // Per-feed price history — continuously updated by the daemon
 const priceHistory: Record<string, number[]> = {}
@@ -36,13 +36,8 @@ const DAEMON_INTERVAL_MS = 10_000
 const daemonActive: Record<string, boolean> = {}
 
 export async function fetchCurrentPrice(feedId: string): Promise<number> {
-  const url = `${HERMES_BASE}?ids[]=${feedId}&parsed=true`
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`Hermes fetch failed: ${res.status}`)
-  const data = await res.json()
-  const p = data.parsed?.[0]?.price
-  if (!p) throw new Error('No parsed price')
-  return Number(BigInt(p.price)) * Math.pow(10, p.expo)
+  const { price } = await fetchLivePrice(feedId)
+  return price
 }
 
 // Background daemon: poll price every 10s for a feed

@@ -188,7 +188,7 @@ async function catchUpOpenRounds() {
           log(`Caught up: round #${id} still open`)
         } else {
           // Round closed but unresolved (e.g. from a previous bot session) — resolve it now.
-          // Small delay between catchup resolutions to avoid Hermes rate-limiting.
+          // Small delay between catchup resolutions to avoid exchange API rate-limiting.
           log(`Caught up: round #${id} closed but unresolved — resolving…`)
           await sleep(1500)
           await resolveIfNeeded(id)

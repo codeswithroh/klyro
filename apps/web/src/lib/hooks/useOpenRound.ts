@@ -10,7 +10,8 @@
  * per updateData element.
  *
  * Flow:
- *   1. Fetch live price from Pyth Hermes REST (rawPrice + expo)
+ *   1. Fetch live price (see ../priceFeed — Hermes now requires a paid API
+ *      key, so this sources from free exchange APIs instead)
  *   2. abi.encode into MockPyth's updateData format
  *   3. Call openRoundWithPrice(updateData, feedId, duration, {value: 0})
  *   4. waitForReceipt — throws on revert so the caller's catch fires
@@ -25,8 +26,7 @@ import { thirdwebClient } from '../contracts/thirdweb-client'
 import { CONTRACTS, PRICE_FEEDS, type AssetPair } from '../contracts/addresses'
 import { ROUND_MANAGER_ABI } from '../contracts/abis'
 import { mantleSepolia } from '../contracts/chain'
-
-const HERMES_BASE = 'https://hermes.pyth.network/v2/updates/price/latest'
+import { fetchLivePrice, type LivePrice } from '../priceFeed'
 
 const twChain = defineChain({
   id: mantleSepolia.id,
@@ -34,31 +34,11 @@ const twChain = defineChain({
   nativeCurrency: mantleSepolia.nativeCurrency,
 })
 
-interface HermesPrice {
-  rawPrice: bigint
-  conf:     bigint
-  expo:     number
-}
-
-async function fetchHermesPrice(feedId: string): Promise<HermesPrice> {
-  const url = `${HERMES_BASE}?ids[]=${feedId}&encoding=hex&parsed=true`
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`Hermes fetch failed: ${res.status}`)
-  const data = await res.json()
-  const parsed = data.parsed?.[0]
-  if (!parsed) throw new Error('No parsed price from Hermes')
-  return {
-    rawPrice: BigInt(parsed.price.price),
-    conf:     BigInt(parsed.price.conf),
-    expo:     parsed.price.expo as number,
-  }
-}
-
 /**
  * Encode price data in MockPyth's format:
  *   abi.encode(bytes32 feedId, int64 price, uint64 conf, int32 expo)
  */
-function encodeMockPythUpdate(feedId: string, price: HermesPrice): `0x${string}` {
+function encodeMockPythUpdate(feedId: string, price: LivePrice): `0x${string}` {
   return encodeAbiParameters(
     parseAbiParameters('bytes32, int64, uint64, int32'),
     [
@@ -84,12 +64,12 @@ export function useOpenRound() {
     try {
       const feedId = PRICE_FEEDS[asset]
 
-      // 1. Fetch live price from Hermes
+      // 1. Fetch live price
       setStatus('Fetching live price…')
-      const hermesPrice = await fetchHermesPrice(feedId)
+      const livePrice = await fetchLivePrice(feedId)
 
       // 2. Encode as MockPyth update (no VAA needed)
-      const updateData = [encodeMockPythUpdate(feedId, hermesPrice)]
+      const updateData = [encodeMockPythUpdate(feedId, livePrice)]
 
       // 3. Call openRoundWithPrice — fee is 0 on MockPyth
       const rmContract = getContract({
@@ -125,7 +105,7 @@ export function useOpenRound() {
       setStatus(null)
     } catch (e) {
       const msg = (e as Error).message ?? ''
-      if (msg.toLowerCase().includes('hermes')) {
+      if (msg.toLowerCase().includes('binance') || msg.toLowerCase().includes('coingecko') || msg.toLowerCase().includes('price feed')) {
         setError('Could not fetch live price — check connection and retry')
       } else if (msg.toLowerCase().includes('user rejected') || msg.toLowerCase().includes('user denied')) {
         setError('Transaction cancelled')

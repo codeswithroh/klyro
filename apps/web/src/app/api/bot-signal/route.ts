@@ -10,28 +10,25 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-
-const HERMES_BASE = 'https://hermes.pyth.network/v2/updates/price/latest'
+import { fetchLivePrice } from '@/lib/priceFeed'
 
 async function computeDirection(feedId: string): Promise<'up' | 'down'> {
   try {
     // Fetch two samples ~400ms apart for micro-momentum signal
-    const url = `${HERMES_BASE}?ids[]=${feedId}&parsed=true`
-    const [r1, r2] = await Promise.all([
-      fetch(url).then(r => r.json()),
-      new Promise<Response>(res => setTimeout(() => res(fetch(url)), 400))
-        .then(r => (r as Response).json()),
+    const [s1, s2] = await Promise.all([
+      fetchLivePrice(feedId),
+      new Promise<Awaited<ReturnType<typeof fetchLivePrice>>>(
+        (resolve, reject) => setTimeout(() => fetchLivePrice(feedId).then(resolve, reject), 400),
+      ),
     ])
 
-    const expo1 = r1.parsed?.[0]?.price?.expo ?? -8
-    const expo2 = r2.parsed?.[0]?.price?.expo ?? -8
-    const p1 = Number(BigInt(r1.parsed?.[0]?.price?.price ?? '0')) * Math.pow(10, expo1)
-    const p2 = Number(BigInt(r2.parsed?.[0]?.price?.price ?? '0')) * Math.pow(10, expo2)
+    const p1 = s1.price
+    const p2 = s2.price
 
     if (p1 === 0 || p2 === 0) return Math.random() > 0.5 ? 'up' : 'down'
 
     // Confidence band
-    const conf = Number(BigInt(r2.parsed?.[0]?.price?.conf ?? '1')) * Math.pow(10, expo2)
+    const conf = Number(s2.conf) * Math.pow(10, s2.expo)
     const relConf = conf / p2
 
     // Mean-reversion signal (contrarian like the standalone bot)

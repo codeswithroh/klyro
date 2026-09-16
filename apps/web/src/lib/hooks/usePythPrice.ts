@@ -2,8 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { PRICE_FEEDS, type AssetPair } from '../contracts/addresses'
-
-const HERMES_BASE = 'https://hermes.pyth.network/v2/updates/price/latest'
+import { fetchLivePrice } from '../priceFeed'
 
 interface PythPriceData {
   price: number      // human-readable (adjusted by exponent)
@@ -11,30 +10,18 @@ interface PythPriceData {
   expo: number
   confidence: number
   publishTime: number
-  vaas: string[]     // price update VAAs needed to push on-chain
+  vaas: string[]     // unused with MockPyth — no VAA verification on-chain
 }
 
 async function fetchPythPrice(feedId: string): Promise<PythPriceData> {
-  const url = `${HERMES_BASE}?ids[]=${feedId}&encoding=hex&parsed=true`
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`Pyth Hermes fetch failed: ${res.status}`)
-  const data = await res.json()
-
-  const parsed = data.parsed?.[0]
-  if (!parsed) throw new Error('No parsed price data')
-
-  const rawPrice = BigInt(parsed.price.price)
-  const expo = parsed.price.expo
-  const price = Number(rawPrice) * Math.pow(10, expo)
-  const confidence = Number(BigInt(parsed.price.conf)) * Math.pow(10, expo)
-
+  const p = await fetchLivePrice(feedId)
   return {
-    price,
-    rawPrice,
-    expo,
-    confidence,
-    publishTime: parsed.price.publish_time,
-    vaas: data.binary?.data ?? [],
+    price: p.price,
+    rawPrice: p.rawPrice,
+    expo: p.expo,
+    confidence: Number(p.conf) * Math.pow(10, p.expo),
+    publishTime: p.publishTime,
+    vaas: [],
   }
 }
 

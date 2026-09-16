@@ -16,11 +16,11 @@ import {
   http,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
+import { fetchLivePrice } from '@/lib/priceFeed'
 
 const RPC_URL = process.env.NEXT_PUBLIC_MANTLE_SEPOLIA_RPC ?? 'https://rpc.sepolia.mantle.xyz'
 const ROUND_MANAGER = process.env.NEXT_PUBLIC_ROUND_MANAGER_ADDRESS as `0x${string}` | undefined
 const BOT_PRIVATE_KEY = process.env.BOT_PRIVATE_KEY as `0x${string}` | undefined
-const HERMES_BASE = 'https://hermes.pyth.network/v2/updates/price/latest'
 
 const mantleSepolia = {
   id: 5003,
@@ -47,25 +47,24 @@ const ABI = [
   },
 ] as const
 
-// Fetch ETH/USD from Hermes and return a simple prediction signal
+// Fetch two live samples and return a simple momentum-based prediction signal
 async function computeDirection(feedId: string): Promise<boolean> {
   try {
     // Fetch 2 samples separated by a brief pause for momentum check
-    const url = `${HERMES_BASE}?ids[]=${feedId}&parsed=true`
-
-    const [r1, r2] = await Promise.all([
-      fetch(url).then(r => r.json()),
-      new Promise<Response>(res => setTimeout(() => res(fetch(url)), 400))
-        .then(r => (r as Response).json()),
+    const [s1, s2] = await Promise.all([
+      fetchLivePrice(feedId),
+      new Promise<Awaited<ReturnType<typeof fetchLivePrice>>>(
+        (resolve, reject) => setTimeout(() => fetchLivePrice(feedId).then(resolve, reject), 400),
+      ),
     ])
 
-    const p1 = Number(BigInt(r1.parsed?.[0]?.price?.price ?? '0')) * Math.pow(10, r1.parsed?.[0]?.price?.expo ?? -8)
-    const p2 = Number(BigInt(r2.parsed?.[0]?.price?.price ?? '0')) * Math.pow(10, r2.parsed?.[0]?.price?.expo ?? -8)
+    const p1 = s1.price
+    const p2 = s2.price
 
     if (p1 === 0 || p2 === 0) return Math.random() > 0.5
 
     // Confidence from the oracle (tight spread = more certain market)
-    const conf = Number(BigInt(r2.parsed?.[0]?.price?.conf ?? '1')) * Math.pow(10, r2.parsed?.[0]?.price?.expo ?? -8)
+    const conf = Number(s2.conf) * Math.pow(10, s2.expo)
     const relConf = conf / p2  // confidence as fraction of price
 
     const pctMove = (p2 - p1) / p1  // momentum signal

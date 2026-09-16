@@ -1,7 +1,8 @@
 /**
- * RoundOpener — fetches fresh prices from Hermes, encodes them for MockPyth,
- * then calls RoundManager.openRoundWithPrice. Runs on a fixed interval when
- * ENABLE_AUTO_ROUND_OPENER=true (default: disabled — user opens from UI).
+ * RoundOpener — fetches fresh prices (see ./priceFeed.js), encodes them for
+ * MockPyth, then calls RoundManager.openRoundWithPrice. Runs on a fixed
+ * interval when ENABLE_AUTO_ROUND_OPENER=true (default: disabled — user
+ * opens from UI).
  *
  * MockPyth encoding: abi.encode(bytes32 feedId, int64 price, uint64 conf, int32 expo)
  * NOT Pyth v32 VAAs (PNAU format) — the old Wormhole-based contract is broken on Mantle Sepolia.
@@ -20,8 +21,8 @@ import { privateKeyToAccount } from 'viem/accounts'
 import { config } from './config.js'
 import { mantleSepolia } from './chain.js'
 import { ROUND_MANAGER_ABI } from './abis.js'
+import { fetchLivePrice } from './priceFeed.js'
 
-const HERMES_BASE = 'https://hermes.pyth.network/v2/updates/price/latest'
 const ROUND_INTERVAL_MS = 70_000  // open a new round every ~70s (60s round + 10s buffer)
 
 // MockPyth contract on Mantle Sepolia (replaces stale Pyth v32)
@@ -70,32 +71,17 @@ function log(msg: string) {
   console.log(`[RoundOpener][${new Date().toISOString()}] ${msg}`)
 }
 
-interface HermesResult {
-  updateData: `0x${string}`[]  // MockPyth-encoded, not PNAU VAAs
+interface EncodedPrice {
+  updateData: `0x${string}`[]  // MockPyth-encoded
   price: number                 // human-readable for logging
 }
 
 /**
- * Fetch the latest price from Hermes REST and encode it for MockPyth.
- * MockPyth accepts abi.encode(bytes32 feedId, int64 price, uint64 conf, int32 expo)
- * — NOT the binary PNAU VAA format that the old Pyth v32 requires.
+ * Fetch the latest live price and encode it for MockPyth.
+ * MockPyth accepts abi.encode(bytes32 feedId, int64 price, uint64 conf, int32 expo).
  */
-async function fetchAndEncode(feedId: `0x${string}`): Promise<HermesResult> {
-  const url = `${HERMES_BASE}?ids[]=${feedId}&encoding=hex&parsed=true`
-  const res = await fetch(url)
-  if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    throw new Error(`Hermes error: ${res.status} — ${body.slice(0, 120)}`)
-  }
-  const data = await res.json()
-
-  const parsed = data.parsed?.[0]
-  if (!parsed) throw new Error('No parsed price from Hermes')
-
-  const rawPrice = BigInt(parsed.price.price)
-  const conf     = BigInt(parsed.price.conf)
-  const expo     = parsed.price.expo as number
-  const price    = Number(rawPrice) * Math.pow(10, expo)
+async function fetchAndEncode(feedId: `0x${string}`): Promise<EncodedPrice> {
+  const { rawPrice, conf, expo, price } = await fetchLivePrice(feedId)
 
   const encoded = encodeAbiParameters(
     parseAbiParameters('bytes32, int64, uint64, int32'),
