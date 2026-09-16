@@ -1,9 +1,17 @@
-export type AssetPair = 'ETH/USD' | 'BTC/USD' | 'MNT/USD'
+import type { AssetPair } from '../contracts/addresses'
+
+export type { AssetPair }
 
 export const SEED_PRICES: Record<AssetPair, number> = {
-  'ETH/USD': 3418.2,
-  'BTC/USD': 67450.0,
-  'MNT/USD': 0.812,
+  'ETH/USD':  3418.2,
+  'BTC/USD':  67450.0,
+  'MNT/USD':  0.812,
+  'SOL/USD':  97.3,
+  'BNB/USD':  711.7,
+  'XRP/USD':  1.29,
+  'DOGE/USD': 0.08,
+  'ADA/USD':  0.195,
+  'AVAX/USD': 7.26,
 }
 
 // Max % move per tick (1 second). Simulates realistic micro-volatility.
@@ -17,11 +25,9 @@ export class PriceSimulator {
 
   constructor() {
     this.prices = { ...SEED_PRICES }
-    this.history = {
-      'ETH/USD': [SEED_PRICES['ETH/USD']],
-      'BTC/USD': [SEED_PRICES['BTC/USD']],
-      'MNT/USD': [SEED_PRICES['MNT/USD']],
-    }
+    this.history = Object.fromEntries(
+      Object.entries(SEED_PRICES).map(([asset, price]) => [asset, [price]]),
+    ) as Record<AssetPair, number[]>
   }
 
   tick(asset: AssetPair): number {
@@ -49,8 +55,10 @@ export class PriceSimulator {
 export const globalPriceSimulator = new PriceSimulator()
 
 export function formatPrice(asset: AssetPair, price: number): string {
-  if (asset === 'MNT/USD') return `$${price.toFixed(4)}`
-  if (asset === 'BTC/USD') return `$${price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  // Sub-$1 assets need more decimal places or every move rounds to zero.
+  if (asset === 'MNT/USD' || asset === 'DOGE/USD' || asset === 'ADA/USD') {
+    return `$${price.toFixed(4)}`
+  }
   return `$${price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 

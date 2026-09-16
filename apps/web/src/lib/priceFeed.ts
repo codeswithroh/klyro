@@ -48,9 +48,15 @@ async function fetchCoingeckoPrice(id: string): Promise<number> {
 // MNT isn't listed on Binance; everything else is (deeper book, higher rate limit).
 async function fetchUsdPrice(asset: AssetPair): Promise<number> {
   switch (asset) {
-    case 'ETH/USD': return fetchBinancePrice('ETHUSDT')
-    case 'BTC/USD': return fetchBinancePrice('BTCUSDT')
-    case 'MNT/USD': return fetchCoingeckoPrice('mantle')
+    case 'ETH/USD':  return fetchBinancePrice('ETHUSDT')
+    case 'BTC/USD':  return fetchBinancePrice('BTCUSDT')
+    case 'MNT/USD':  return fetchCoingeckoPrice('mantle')
+    case 'SOL/USD':  return fetchBinancePrice('SOLUSDT')
+    case 'BNB/USD':  return fetchBinancePrice('BNBUSDT')
+    case 'XRP/USD':  return fetchBinancePrice('XRPUSDT')
+    case 'DOGE/USD': return fetchBinancePrice('DOGEUSDT')
+    case 'ADA/USD':  return fetchBinancePrice('ADAUSDT')
+    case 'AVAX/USD': return fetchBinancePrice('AVAXUSDT')
     default: throw new Error(`No price source configured for ${asset}`)
   }
 }

@@ -90,6 +90,18 @@ async function pollBotPrediction(roundId: bigint, signal: AbortSignal, durationS
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+const ASSET_GLYPH: Record<AssetPair, string> = {
+  'ETH/USD':  'Ξ',
+  'BTC/USD':  '₿',
+  'MNT/USD':  'M',
+  'SOL/USD':  'S',
+  'BNB/USD':  'B',
+  'XRP/USD':  'X',
+  'DOGE/USD': 'Ð',
+  'ADA/USD':  'A',
+  'AVAX/USD': 'A',
+}
+
 function feedIdToAsset(feedId: string): AssetPair {
   const entry = Object.entries(PRICE_FEEDS).find(
     ([, v]) => v.toLowerCase() === feedId.toLowerCase()
@@ -615,7 +627,7 @@ export function ArenaView({
         <div className="flex items-center gap-2 pr-4 border-r border-white/[0.06]">
           <div className="w-6 h-6 rounded-full grid place-items-center text-white font-display font-bold text-[11px]"
             style={{ background: 'conic-gradient(from 200deg, #6C2BF2, #9A6BFF)' }}>
-            {displayAsset === 'ETH/USD' ? 'Ξ' : displayAsset === 'BTC/USD' ? '₿' : 'M'}
+            {ASSET_GLYPH[displayAsset]}
           </div>
           <span className="font-display font-bold text-[13px] text-white">{displayAsset}</span>
           <span className="font-mono text-[9px] text-white/25 uppercase tracking-[.1em] hidden sm:block">
@@ -668,7 +680,7 @@ export function ArenaView({
         {/* Mock asset switcher */}
         {!isLive && mockPhase === 'idle' && (
           <div className="flex gap-1.5">
-            {(['ETH/USD', 'BTC/USD', 'MNT/USD'] as AssetPair[]).map(a => (
+            {(['ETH/USD', 'BTC/USD', 'MNT/USD', 'SOL/USD', 'BNB/USD', 'XRP/USD', 'DOGE/USD', 'ADA/USD', 'AVAX/USD'] as AssetPair[]).map(a => (
               <button key={a} onClick={() => useRoundStore.getState().setAsset(a)}
                 className={`font-mono text-[10px] font-semibold px-2 py-0.5 rounded transition-colors ${a === displayAsset ? 'bg-[#6C2BF2]/30 text-[#9A6BFF]' : 'text-white/30 hover:text-white/55'}`}>
                 {a.split('/')[0]}
